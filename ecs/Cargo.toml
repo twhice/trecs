@@ -1,5 +1,5 @@
 [package]
-name = "ecs"
+name = "tecs"
 version = "0.1.0"
 edition = "2021"
 

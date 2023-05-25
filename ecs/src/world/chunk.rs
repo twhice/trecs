@@ -31,7 +31,7 @@ pub(crate) struct Chunk {
     /// 缓存被移除的部分
     removed: Vec<usize>,
     /// [Bundle]的TypeId和Components的类型
-    pub meta: (TypeId, &'static [TypeId]),
+    pub(crate) meta: (TypeId, &'static [TypeId]),
 }
 
 impl Chunk {
@@ -41,6 +41,15 @@ impl Chunk {
             alive: Vec::with_capacity(CHUNK_SIZE),
             removed: vec![],
             meta: (TypeId::of::<B>(), B::conponents_ids()),
+        }
+    }
+
+    pub fn create(bundle_id: TypeId, components: &'static [TypeId]) -> Self {
+        Self {
+            storage: Vec::with_capacity(CHUNK_SIZE),
+            alive: Vec::with_capacity(CHUNK_SIZE),
+            removed: vec![],
+            meta: (bundle_id, components),
         }
     }
 

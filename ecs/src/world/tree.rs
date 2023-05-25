@@ -11,6 +11,11 @@ pub const TREE_SIZE: usize = 4;
 /// 来做到快速(?)索引
 ///
 /// 效率比之哈希表如何? 不知
+///
+///
+/// # 迭代器太麻烦了 太麻烦了
+///
+/// # 弃用
 pub enum TypeIdTree<T> {
     Node {
         /// 节点

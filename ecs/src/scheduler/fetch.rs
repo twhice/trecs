@@ -1,4 +1,4 @@
-use std::any::TypeId;
+use std::any::{Any, TypeId};
 
 use crate::{component::Component, world::chunk::Components};
 
@@ -9,6 +9,8 @@ use super::transmute_lifetime;
 /// 一种树状的数据结构
 ///
 /// 用于嵌套地通过[Component]生成WorldFetch::Item
+///
+/// 同时通过对[MappingTable]进行检查来避免别名
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MappingTable {
     Node(Vec<MappingTable>),
@@ -42,6 +44,25 @@ impl MappingTable {
             None
         }
     }
+
+    /// 递归地展开为[Vec<usize>]
+    ///
+    /// ### 无法还原
+    ///
+    /// 用来检测别名冲突
+    pub fn expansion(&self) -> Vec<usize> {
+        let mut tmp = vec![];
+        match self {
+            MappingTable::Node(nodes) => {
+                for node in nodes {
+                    tmp.append(&mut node.expansion());
+                }
+            }
+            MappingTable::Mapping(u) => tmp.push(*u),
+        }
+
+        tmp
+    }
 }
 
 impl From<Vec<usize>> for MappingTable {
@@ -60,7 +81,7 @@ impl From<Vec<usize>> for MappingTable {
 /// 通过创建[MappingTable]并根据这个[MappingTable]来实现
 ///
 /// [World]: crate::world::World
-pub trait WorldFetch {
+pub trait WorldFetch: Any {
     type Item<'a>;
 
     /// 通过[Components]生成Item
@@ -80,7 +101,7 @@ pub trait WorldFetch {
     fn contain(components: &mut Vec<TypeId>) -> Option<MappingTable>;
 }
 
-impl<T: Component> WorldFetch for &T {
+impl<T: Component> WorldFetch for &'static T {
     type Item<'a> = &'a T;
 
     #[inline]
@@ -108,7 +129,7 @@ impl<T: Component> WorldFetch for &T {
     }
 }
 
-impl<T: Component> WorldFetch for &mut T {
+impl<T: Component> WorldFetch for &'static mut T {
     type Item<'a> = &'a mut T;
 
     #[inline]

@@ -1,18 +1,20 @@
 pub(crate) mod chunk;
+#[allow(unused)]
 pub(crate) mod tree;
 
-use std::any::TypeId;
+use std::{any::TypeId, collections::BTreeMap};
 
 use crate::{
     component::bundle::{Bundle, BundleMeta},
     component::entity::Entity,
 };
 use chunk::{Chunk, Components, CHUNK_SIZE};
-use tree::TypeIdTree;
 
 pub struct World {
-    chunks: Vec<Chunk>,
-    metas: TypeIdTree<BundleMeta>,
+    /// 区块表
+    pub(crate) chunks: Vec<Chunk>,
+    /// [Bundle]的元数据
+    pub(crate) metas: BTreeMap<TypeId, BundleMeta>,
 }
 
 impl World {
@@ -26,8 +28,8 @@ impl World {
     /// 给一个实现了[Bundle]的类型注册
     fn register<B: Bundle>(&mut self) -> bool {
         let bundle_id = TypeId::of::<B>();
-        if self.metas.get(bundle_id).is_none() {
-            self.metas.set(
+        if self.metas.get(&bundle_id).is_none() {
+            self.metas.insert(
                 bundle_id,
                 BundleMeta {
                     components: B::conponents_ids(),
@@ -45,7 +47,7 @@ impl World {
     pub fn spawn<B: Bundle>(&mut self, b: B) -> Entity {
         self.register::<B>();
         let bundle_id = TypeId::of::<B>();
-        let meta = self.metas.get_mut(bundle_id).unwrap();
+        let meta = self.metas.get_mut(&bundle_id).unwrap();
         let mut vul = Some(b.deconstruct());
 
         for chunk_id in &meta.chunks {
@@ -64,11 +66,125 @@ impl World {
             let mut entity = chunk.insert(vul.unwrap()).unwrap();
             entity.index += self.chunks.len() * CHUNK_SIZE;
             meta.chunks.push(self.chunks.len());
+
             self.chunks.push(chunk);
             entity
         }
     }
 
+    /// 插入迭代器
+    ///
+    /// 对于大量数据 性能更好
+    pub fn spawn_iter<B: Bundle, I: IntoIterator<Item = B>>(&mut self, iter: I) -> Vec<Entity> {
+        let mut iter = iter.into_iter();
+        self.register::<B>();
+        let bundle_id = TypeId::of::<B>();
+        let meta = self.metas.get_mut(&bundle_id).unwrap();
+
+        let chunks = meta.chunks.clone();
+        let mut chunks = chunks.into_iter();
+        // 断言: 至少有一个
+        let mut chunk_id = chunks.next().unwrap();
+        let mut chunk = &mut self.chunks[chunk_id];
+
+        let mut entities = vec![];
+
+        let insert =
+            |cs: Components, chunk_id: usize, chunk: &mut Chunk| -> Result<Entity, Components> {
+                let mut entity = chunk.insert(cs)?;
+                entity.index += chunk_id * CHUNK_SIZE;
+                Ok(entity)
+            };
+
+        while let Some(bundle) = iter.next() {
+            let mut cs = Some(bundle.deconstruct());
+            loop {
+                match insert(cs.take().unwrap(), chunk_id, chunk) {
+                    Ok(entity) => {
+                        entities.push(entity);
+                        break;
+                    }
+                    Err(cs_) => {
+                        cs = Some(cs_);
+                        if let Some(cid) = chunks.next() {
+                            chunk_id = cid;
+                        } else {
+                            chunk_id = self.chunks.len();
+                            meta.chunks.push(chunk_id);
+                            self.chunks.push(Chunk::new::<B>());
+                        }
+                        chunk = &mut self.chunks[chunk_id];
+                    }
+                }
+            }
+        }
+        entities
+    }
+
+    /// 快速插入 但是不是泛型
+    ///
+    /// 实际上为对Commands的接口
+    pub fn spwan_iter_boxed<
+        I: IntoIterator<Item = (TypeId, &'static [TypeId], Vec<Components>)>,
+    >(
+        &mut self,
+        iter: I,
+    ) {
+        let mut entities = vec![];
+        for (bundle_id, components, bundles) in iter {
+            // 筹备区块 & 元数据
+            let meta = {
+                let nr_chunks = bundles.len() / CHUNK_SIZE
+                    + if bundles.len() % CHUNK_SIZE != 0 {
+                        1
+                    } else {
+                        0
+                    };
+                if !self.metas.contains_key(&bundle_id) {
+                    self.metas.insert(
+                        bundle_id,
+                        BundleMeta {
+                            components,
+                            bundle_id,
+                            chunks: (0..nr_chunks).map(|n| self.chunks.len() + n).collect(),
+                        },
+                    );
+                    for _ in 0..nr_chunks {
+                        self.chunks.push(Chunk::create(bundle_id, components));
+                    }
+                }
+                let meta = self.metas.get_mut(&bundle_id).unwrap();
+                if meta.chunks.len() < nr_chunks {
+                    for _ in 0..(nr_chunks - meta.chunks.len()) {
+                        meta.chunks.push(self.chunks.len());
+                        self.chunks.push(Chunk::create(bundle_id, components));
+                    }
+                }
+                meta
+            };
+            let mut chunk_id_id = 0;
+            let mut chunk_id = meta.chunks[chunk_id_id];
+            let mut chunk = &mut self.chunks[chunk_id];
+            for cs in bundles {
+                let mut cs = Some(cs);
+                loop {
+                    match chunk.insert(cs.take().unwrap()) {
+                        Ok(mut entity) => {
+                            entity.index += chunk_id * CHUNK_SIZE;
+                            entities.push(entity);
+                            break;
+                        }
+                        Err(cs_) => {
+                            cs = Some(cs_);
+                            chunk_id_id += 1;
+                            chunk_id = meta.chunks[chunk_id_id];
+                            chunk = &mut self.chunks[chunk_id];
+                        }
+                    }
+                }
+            }
+        }
+    }
     #[inline]
     fn locate(entity: Entity) -> (usize, usize) {
         (entity.index / CHUNK_SIZE, entity.index % CHUNK_SIZE)

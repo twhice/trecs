@@ -40,7 +40,7 @@ impl Chunk {
             storage: Vec::with_capacity(CHUNK_SIZE),
             alive: Vec::with_capacity(CHUNK_SIZE),
             removed: vec![],
-            meta: (TypeId::of::<B>(), &B::COMPONENT_IDS),
+            meta: (TypeId::of::<B>(), B::conponents_ids()),
         }
     }
 

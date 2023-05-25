@@ -30,7 +30,7 @@ impl World {
             self.metas.set(
                 bundle_id,
                 BundleMeta {
-                    components: &B::COMPONENT_IDS,
+                    components: B::conponents_ids(),
                     bundle_id,
                     chunks: vec![],
                 },
@@ -119,7 +119,7 @@ impl World {
         let (chid, coid) = Self::locate(entity);
         let chunk: &mut Chunk = &mut self.chunks[chid];
 
-        if chunk.meta.1 != B::COMPONENT_IDS {
+        if chunk.meta.1 != B::conponents_ids() {
             return Err(b);
         }
 
@@ -141,7 +141,7 @@ impl World {
         let (chid, coid) = Self::locate(entity);
         let chunk: &mut Chunk = &mut self.chunks[chid];
 
-        if chunk.meta.1 != B::COMPONENT_IDS {
+        if chunk.meta.1 != B::conponents_ids() {
             return Err(b);
         }
 

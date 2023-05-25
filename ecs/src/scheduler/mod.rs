@@ -12,7 +12,10 @@ pub unsafe fn transmute_lifetime<'a, 'b, T>(x: &'a T) -> &'b mut T {
     &mut *(x as *const _ as *mut T)
 }
 
+/// 引用的类型强制转换
+///
+/// 极度unsafe
 #[inline]
-pub unsafe fn transmute_ref<T, Y>(x: &T) -> &Y {
-    &*(x as *const _ as *const Y)
+pub unsafe fn transmute_ref<T, Y>(x: &T) -> &mut Y {
+    &mut *(x as *const _ as *mut Y)
 }

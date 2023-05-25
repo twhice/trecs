@@ -57,6 +57,8 @@ impl From<Vec<usize>> for MappingTable {
 ///
 /// 能够在[World]中选取出特定的元素
 ///
+/// 通过创建[MappingTable]并根据这个[MappingTable]来实现
+///
 /// [World]: crate::world::World
 pub trait WorldFetch {
     type Item<'a>;
@@ -64,31 +66,18 @@ pub trait WorldFetch {
     /// 通过[Components]生成Item
     ///
     /// 内部使用了一些rust unsafe黑魔法
+    ///
+    /// 不会检查[MappingTable]是否有效,是否正确
     unsafe fn build<'a>(components: &Components, mapping: &MappingTable) -> Self::Item<'a>;
 
     /// 用来检测能不能从[Components]中取得Item
     ///
     /// 如果能 会返回一个[MappingTable]
+    ///
+    /// 调用时应该新建一个[Vec]并传入一个可变引用
+    ///
+    /// 函数签名如此是为了方便递归
     fn contain(components: &mut Vec<TypeId>) -> Option<MappingTable>;
-
-    // let mut target = Self::Bundle::COMPONENT_IDS.to_vec();
-    //     let mut components = components.to_vec();
-    //     // 逆转target 进行pop
-    //     target.reverse();
-    //     let mut mapping = Vec::<usize>::with_capacity(components.len());
-    //     while let Some(ty) = target.pop() {
-    //         let mut index = None;
-    //         for (mapping, component_ty) in components.iter().enumerate() {
-    //             if *component_ty == ty {
-    //                 index = Some(mapping);
-    //                 break;
-    //             }
-    //         }
-    //         let index = index?;
-    //         mapping.push(index);
-    //         components.remove(index);
-    //     }
-    //     Some(mapping.into())
 }
 
 impl<T: Component> WorldFetch for &T {
@@ -104,6 +93,8 @@ impl<T: Component> WorldFetch for &T {
     fn contain(components: &mut Vec<TypeId>) -> Option<MappingTable> {
         let mut index = None;
         let self_id = TypeId::of::<T>();
+
+        // 遍历查看 是否包含
         for (idx, tid) in components.iter().enumerate() {
             if *tid == self_id {
                 index = Some(idx);
@@ -111,6 +102,7 @@ impl<T: Component> WorldFetch for &T {
             }
         }
         let index = index?;
+        // 避免别名 移除
         components.remove(index);
         Some(MappingTable::Mapping(index))
     }
@@ -196,12 +188,29 @@ mod tests {
         })
         .count();
 
-        let table = <(&&str, &i32) as WorldFetch>::contain(&mut ids).unwrap();
-        assert_eq!(
-            table,
-            MappingTable::Node(vec![MappingTable::Mapping(1), MappingTable::Mapping(0)])
-        );
-        let q = unsafe { <(&&str, &i32) as WorldFetch>::build(&cs, &table) };
-        assert_eq!(q, (&"", &1))
+        // 读
+        {
+            let mut ids = ids.clone();
+            let table = <(&&str, &i32) as WorldFetch>::contain(&mut ids).unwrap();
+            assert_eq!(
+                table,
+                MappingTable::Node(vec![MappingTable::Mapping(1), MappingTable::Mapping(0)])
+            );
+            let q = unsafe { <(&&str, &i32) as WorldFetch>::build(&cs, &table) };
+            assert_eq!(q, (&"", &1))
+        }
+
+        // 写
+        {
+            let mut ids = ids.clone();
+            let table = <(&&str, &mut i32) as WorldFetch>::contain(&mut ids).unwrap();
+            assert_eq!(
+                table,
+                MappingTable::Node(vec![MappingTable::Mapping(1), MappingTable::Mapping(0)])
+            );
+            let q = unsafe { <(&&str, &mut i32) as WorldFetch>::build(&cs, &table) };
+            *q.1 = 100;
+            assert_eq!(q, (&"", &mut 100))
+        }
     }
 }

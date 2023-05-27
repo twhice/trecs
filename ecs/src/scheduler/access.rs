@@ -1,51 +1,53 @@
-use std::{
-    marker::PhantomData,
-    ops::{Deref, DerefMut},
-};
+use std::marker::PhantomData;
 
-use crate::{component::entity::Entity, world::chunk::Chunk};
+use crate::world::chunk::Chunk;
 
 use super::{
     fetch::{MappingTable, WorldFetch},
+    iter::{BundleIter, BundleIters, EntityBundleIter, EntityBundleIters},
     query::WorldQuery,
 };
 
-/// [WorldFetch]和[WorldQuery]的实际选取
+/// [WorldFetch]和[WorldQuery]实际生效的地方
 ///
-/// 通过迭代获取
-pub struct Access<'a, F: WorldFetch, Q: WorldQuery> {
-    mapping: &'a MappingTable,
-    chunk: &'a Chunk,
-    chunk_index: usize,
-    components_index: usize,
-    _f: PhantomData<F>,
-    _q: PhantomData<Q>,
+/// 可以转换为迭代器,Item为[WorldFetch::Item]
+///
+/// 通过[Access],可以对[World]中所有满足要求的[Bundle]的所有区块中
+/// 所有可用的[Components]以特定的格式进行操作(访问,修改)
+///
+/// * 满足[WorldQuery]的条件
+///
+/// * [Components]能够按照一个规则转化为[WorldFetch::Item]
+///
+/// [World]: crate
+/// [Bundle]: crate
+pub struct Access<'a, F: WorldFetch, Q: WorldQuery = ()> {
+    pub(crate) selected_chunks: Vec<(&'a MappingTable, Vec<usize>)>,
+    pub(crate) chunks: &'a Vec<Chunk>,
+    pub(crate) _ph: PhantomData<(F, Q)>,
 }
 
-pub struct Components<I> {
-    pub(crate) inner: I,
-    pub(crate) entity: Entity,
-}
+impl<'a, F: WorldFetch, Q: WorldQuery> Access<'a, F, Q> {
+    pub fn bundle_iter(&'a mut self) -> BundleIters<'a, F, Q> {
+        let iters = self
+            .selected_chunks
+            .iter()
+            .map(|(mapping, selected)| BundleIter::new(mapping, self.chunks, selected.clone(), 0))
+            .collect::<Vec<_>>();
 
-impl<I> Components<I> {
-    #[inline]
-    pub fn entity(&self) -> Entity {
-        self.entity
+        BundleIters { iters }
     }
-}
 
-impl<I> Deref for Components<I> {
-    type Target = I;
+    pub fn entity_bundle_iter(&'a mut self) -> EntityBundleIters<'a, F, Q> {
+        let iters = self
+            .selected_chunks
+            .iter()
+            .map(|(mapping, selected)| {
+                let iter = BundleIter::new(mapping, self.chunks, selected.clone(), 0);
+                EntityBundleIter { inner: iter }
+            })
+            .collect::<Vec<_>>();
 
-    #[inline]
-    fn deref(&self) -> &Self::Target {
-        &self.inner
-    }
-}
-
-impl<I> DerefMut for Components<I> {
-    #[inline]
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.inner
+        EntityBundleIters { iters }
     }
 }

@@ -1,20 +1,25 @@
 pub(crate) mod chunk;
+pub(crate) mod traits;
 #[allow(unused)]
 pub(crate) mod tree;
 
-use std::{any::TypeId, collections::BTreeMap};
-
-use crate::{
-    component::bundle::{Bundle, BundleMeta},
-    component::entity::Entity,
+use std::{
+    any::{Any, TypeId},
+    collections::{BTreeMap, HashMap},
 };
+
+use crate::{component::bundle::BundleMeta, component::entity::Entity};
 use chunk::{Chunk, Components, CHUNK_SIZE};
+
+use self::traits::{InnerCommand, InnerResources};
 
 pub struct World {
     /// 区块表
     pub(crate) chunks: Vec<Chunk>,
     /// [Bundle]的元数据
     pub(crate) metas: BTreeMap<TypeId, BundleMeta>,
+
+    pub(crate) resources: HashMap<TypeId, Box<dyn Any>>,
 }
 
 impl World {
@@ -22,187 +27,24 @@ impl World {
         Self {
             chunks: Default::default(),
             metas: Default::default(),
+            resources: Default::default(),
         }
     }
 
-    /// 给一个实现了[Bundle]的类型注册
-    fn register<B: Bundle>(&mut self) -> bool {
-        let bundle_id = TypeId::of::<B>();
-        if self.metas.get(&bundle_id).is_none() {
-            self.metas.insert(
-                bundle_id,
-                BundleMeta {
-                    components: B::conponents_ids(),
-                    bundle_id,
-                    chunks: vec![],
-                },
-            );
-            false
-        } else {
-            true
-        }
-    }
-
-    /// 将一个实现了[Bundle]的类型放入世界
-    pub fn spawn<B: Bundle>(&mut self, b: B) -> Entity {
-        self.register::<B>();
-        let bundle_id = TypeId::of::<B>();
-        let meta = self.metas.get_mut(&bundle_id).unwrap();
-        let mut vul = Some(b.deconstruct());
-
-        for chunk_id in &meta.chunks {
-            let chunk = &mut self.chunks[*chunk_id];
-            match chunk.insert(vul.take().unwrap()) {
-                Ok(mut entity) => {
-                    entity.index += *chunk_id * CHUNK_SIZE;
-                    return entity;
-                }
-                Err(v) => vul = Some(v),
-            }
-        }
-
-        {
-            let mut chunk = Chunk::new::<B>();
-            let mut entity = chunk.insert(vul.unwrap()).unwrap();
-            entity.index += self.chunks.len() * CHUNK_SIZE;
-            meta.chunks.push(self.chunks.len());
-
-            self.chunks.push(chunk);
-            entity
-        }
-    }
-
-    /// 插入迭代器
-    ///
-    /// 对于大量数据 性能更好
-    pub fn spawn_iter<B: Bundle, I: IntoIterator<Item = B>>(&mut self, iter: I) -> Vec<Entity> {
-        let mut iter = iter.into_iter();
-        self.register::<B>();
-        let bundle_id = TypeId::of::<B>();
-        let meta = self.metas.get_mut(&bundle_id).unwrap();
-
-        let chunks = meta.chunks.clone();
-        let mut chunks = chunks.into_iter();
-        // 断言: 至少有一个
-        let mut chunk_id = chunks.next().unwrap();
-        let mut chunk = &mut self.chunks[chunk_id];
-
-        let mut entities = vec![];
-
-        let insert =
-            |cs: Components, chunk_id: usize, chunk: &mut Chunk| -> Result<Entity, Components> {
-                let mut entity = chunk.insert(cs)?;
-                entity.index += chunk_id * CHUNK_SIZE;
-                Ok(entity)
-            };
-
-        while let Some(bundle) = iter.next() {
-            let mut cs = Some(bundle.deconstruct());
-            loop {
-                match insert(cs.take().unwrap(), chunk_id, chunk) {
-                    Ok(entity) => {
-                        entities.push(entity);
-                        break;
-                    }
-                    Err(cs_) => {
-                        cs = Some(cs_);
-                        if let Some(cid) = chunks.next() {
-                            chunk_id = cid;
-                        } else {
-                            chunk_id = self.chunks.len();
-                            meta.chunks.push(chunk_id);
-                            self.chunks.push(Chunk::new::<B>());
-                        }
-                        chunk = &mut self.chunks[chunk_id];
-                    }
-                }
-            }
-        }
-        entities
-    }
-
-    /// 快速插入 但是不是泛型
-    ///
-    /// 实际上为对Commands的接口
-    pub fn spwan_iter_boxed<
-        I: IntoIterator<Item = (TypeId, &'static [TypeId], Vec<Components>)>,
-    >(
-        &mut self,
-        iter: I,
-    ) {
-        let mut entities = vec![];
-        for (bundle_id, components, bundles) in iter {
-            // 筹备区块 & 元数据
-            let meta = {
-                let nr_chunks = bundles.len() / CHUNK_SIZE
-                    + if bundles.len() % CHUNK_SIZE != 0 {
-                        1
-                    } else {
-                        0
-                    };
-                if !self.metas.contains_key(&bundle_id) {
-                    self.metas.insert(
-                        bundle_id,
-                        BundleMeta {
-                            components,
-                            bundle_id,
-                            chunks: (0..nr_chunks).map(|n| self.chunks.len() + n).collect(),
-                        },
-                    );
-                    for _ in 0..nr_chunks {
-                        self.chunks.push(Chunk::create(bundle_id, components));
-                    }
-                }
-                let meta = self.metas.get_mut(&bundle_id).unwrap();
-                if meta.chunks.len() < nr_chunks {
-                    for _ in 0..(nr_chunks - meta.chunks.len()) {
-                        meta.chunks.push(self.chunks.len());
-                        self.chunks.push(Chunk::create(bundle_id, components));
-                    }
-                }
-                meta
-            };
-            let mut chunk_id_id = 0;
-            let mut chunk_id = meta.chunks[chunk_id_id];
-            let mut chunk = &mut self.chunks[chunk_id];
-            for cs in bundles {
-                let mut cs = Some(cs);
-                loop {
-                    match chunk.insert(cs.take().unwrap()) {
-                        Ok(mut entity) => {
-                            entity.index += chunk_id * CHUNK_SIZE;
-                            entities.push(entity);
-                            break;
-                        }
-                        Err(cs_) => {
-                            cs = Some(cs_);
-                            chunk_id_id += 1;
-                            chunk_id = meta.chunks[chunk_id_id];
-                            chunk = &mut self.chunks[chunk_id];
-                        }
-                    }
-                }
-            }
-        }
-    }
     #[inline]
     fn locate(entity: Entity) -> (usize, usize) {
         (entity.index / CHUNK_SIZE, entity.index % CHUNK_SIZE)
     }
+}
 
-    /// 检测entity是否有效
-    ///
-    /// 返回[None]表示entity不存在
-    #[inline]
-    pub fn alive(&self, entity: Entity) -> Option<bool> {
-        let (chunk_id, _) = Self::locate(entity);
-        self.chunks.get(chunk_id)?.alive(entity)
+impl Default for World {
+    fn default() -> Self {
+        Self::new()
     }
+}
 
-    /// 删除一个[Entity]
-    ///
-    /// 返回entity是否存在
-    pub fn remove(&mut self, entity: Entity) -> bool {
+impl InnerCommand for World {
+    fn remove(&mut self, entity: Entity) -> bool {
         let mut foo = || {
             if !self.alive(entity)? {
                 return Some(false);
@@ -213,10 +55,7 @@ impl World {
         foo().unwrap_or(false)
     }
 
-    /// 将[Entity]从[World]中移出
-    ///
-    /// 如果entity不存在, 返回[None]
-    pub fn remove_vul(&mut self, entity: Entity) -> Option<Components> {
+    fn r#return(&mut self, entity: Entity) -> Option<Components> {
         if !self.alive(entity)? {
             return None;
         }
@@ -224,52 +63,115 @@ impl World {
         Some(self.chunks[chid].remove_vul(coid))
     }
 
-    /// 覆盖掉[Entity]
-    ///
-    /// 如果失败会返回Err([Bundle])
-    pub fn replace<B: Bundle>(&mut self, b: B, entity: Entity) -> Result<(), B> {
-        if !self.alive(entity).unwrap_or(false) {
-            return Err(b);
-        }
-
-        let (chid, coid) = Self::locate(entity);
-        let chunk: &mut Chunk = &mut self.chunks[chid];
-
-        if chunk.meta.1 != B::conponents_ids() {
-            return Err(b);
-        }
-
-        let v = b.deconstruct();
-        chunk.replace(coid, v);
-        Ok(())
+    fn alive(&self, entity: Entity) -> Option<bool> {
+        let (chunk_id, _) = Self::locate(entity);
+        self.chunks.get(chunk_id)?.alive(entity)
     }
 
-    /// 覆盖掉[Entity]
-    ///
-    /// 如果成功会返回Ok([Components])
-    ///
-    /// 如果失败会返回Err([Bundle])
-    pub fn replace_vul<B: Bundle>(&mut self, b: B, entity: Entity) -> Result<Components, B> {
-        if !self.alive(entity).unwrap_or(false) {
-            return Err(b);
+    fn inner_register(&mut self, bundle_id: TypeId, components: &'static [TypeId]) -> bool {
+        if !self.metas.contains_key(&bundle_id) {
+            let meta = BundleMeta {
+                components,
+                bundle_id,
+                chunks: vec![],
+            };
+            self.metas.insert(bundle_id, meta);
+            false
+        } else {
+            true
+        }
+    }
+
+    fn inner_spawn(
+        &mut self,
+        bundle_id: TypeId,
+        components: &'static [TypeId],
+        bundle: Components,
+    ) -> Entity {
+        let mut bundle = Some(bundle);
+        self.inner_register(bundle_id, components);
+        for chunk_id in self.metas.get(&bundle_id).unwrap().chunks.iter() {
+            let chunk = &mut self.chunks[*chunk_id];
+            bundle = match chunk.insert(bundle.take().unwrap()) {
+                Ok(entity) => return entity.sync(*chunk_id),
+                Err(b) => Some(b),
+            }
+        }
+        {
+            let mut chunk = Chunk::create(bundle_id, components);
+            let entity = chunk
+                .insert(bundle.unwrap())
+                .unwrap()
+                .sync(self.chunks.len());
+            self.metas
+                .get_mut(&bundle_id)
+                .unwrap()
+                .chunks
+                .push(self.chunks.len());
+            self.chunks.push(chunk);
+            entity
+        }
+    }
+
+    fn inner_spawn_many(
+        &mut self,
+        bundle_id: TypeId,
+        components: &'static [TypeId],
+        bundles: Vec<Components>,
+    ) -> Vec<Entity> {
+        self.inner_register(bundle_id, components);
+        let mut entities = vec![];
+        let mut bundles = bundles.into_iter();
+        // 优先尝试填满已经分配的空间
+        for chunk_id in self.metas.get(&bundle_id).unwrap().chunks.iter() {
+            let chunk = &mut self.chunks[*chunk_id];
+            // 区块没有满 并且bundle还有剩余
+            while let (true, Some(item)) = (chunk.len() != CHUNK_SIZE, bundles.next()) {
+                entities.push(chunk.insert(item).unwrap().sync(*chunk_id));
+            }
         }
 
-        let (chid, coid) = Self::locate(entity);
-        let chunk: &mut Chunk = &mut self.chunks[chid];
+        let meta = self.metas.get_mut(&bundle_id).unwrap();
+        let mut chunk_id = self.chunks.len();
 
-        if chunk.meta.1 != B::conponents_ids() {
-            return Err(b);
+        loop {
+            // 创建新区块 并且不断写入
+            let mut chunk = Chunk::create(bundle_id, components);
+
+            // 直到chunk已满 / bundles没有剩余
+            while let (true, Some(item)) = (chunk.len() != CHUNK_SIZE, bundles.next()) {
+                entities.push(chunk.insert(item).unwrap().sync(chunk_id));
+            }
+
+            // 更新chunk_id
+            chunk_id = self.chunks.len();
+
+            // 如果Chunk没有被填满,说明Bundle已经全部放进Chunk中
+            // 应当Break
+            let should_break = chunk.len() != CHUNK_SIZE;
+            // 将Chunk放入meta,放入区块表
+            meta.chunks.push(chunk_id);
+            self.chunks.push(chunk);
+
+            if should_break {
+                break;
+            }
         }
 
-        let v = b.deconstruct();
-        let c = chunk.remove_vul(coid);
-        chunk.replace(coid, v);
-        Ok(c)
+        entities
     }
 }
 
-impl Default for World {
-    fn default() -> Self {
-        Self::new()
+impl InnerResources for World {
+    fn inner_get_res_mut(&mut self, resources_id: TypeId) -> Option<&mut Box<dyn Any>> {
+        self.resources.get_mut(&resources_id)
+    }
+
+    fn inner_get_res(&self, resources_id: TypeId) -> Option<&Box<dyn Any>> {
+        self.resources.get(&resources_id)
+    }
+
+    fn inner_contain(&self, resources_id: TypeId) -> bool {
+        self.resources.contains_key(&resources_id)
     }
 }

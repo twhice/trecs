@@ -1,14 +1,28 @@
-use std::{any::TypeId, collections::BTreeMap};
+use std::{
+    any::{Any, TypeId},
+    collections::{BTreeMap, BTreeSet},
+    marker::PhantomData,
+};
 
 use crate::world::World;
 
-use self::caches::MappingCache;
+use self::{
+    access::Access,
+    caches::{FetchCache, QueryCache},
+    command::Command,
+    fetch::{MappingTable, WorldFetch},
+    query::WorldQuery,
+    resources::Resources,
+    system::{System, SystemState},
+};
 
 pub(crate) mod access;
-pub mod caches;
+pub(crate) mod caches;
+pub(crate) mod command;
 pub(crate) mod fetch;
-pub mod iter;
+pub(crate) mod iter;
 pub(crate) mod query;
+pub(crate) mod resources;
 pub(crate) mod system;
 
 /// 常用的无界生命周期转换
@@ -35,63 +49,120 @@ pub unsafe fn transmute_ref<T, Y>(x: &T) -> &mut Y {
 pub struct Scheduler<'a> {
     /// 世界的副本
     world: &'a mut World,
-    /// Access的缓存
-    mapping_cache: BTreeMap<TypeId, MappingCache>,
+
+    cached: BTreeSet<TypeId>,
+    fetch_caches: BTreeMap<TypeId, FetchCache>,
+    query_caches: BTreeMap<TypeId, QueryCache>,
+
+    systems: Vec<Box<dyn System<'a>>>,
+
+    temp_system_state: SystemState,
 }
 
 impl<'a> Scheduler<'a> {
-    pub fn sync(&mut self) {
-        for (ty, meta) in &self.world.metas {
-            if !self.mapping_cache.contains_key(&ty) {
-                self.mapping_cache
-                    .insert(*ty, MappingCache::new(meta.components));
+    pub(crate) fn registry_fetch<F: WorldFetch>(&mut self) {
+        let fetch_id = TypeId::of::<F>();
+        if !self.fetch_caches.contains_key(&fetch_id) {
+            self.fetch_caches.insert(fetch_id, FetchCache::new::<F>());
+        }
+    }
+
+    pub(crate) fn registry_query<Q: WorldQuery>(&mut self) {
+        let query_id = TypeId::of::<Q>();
+        if !self.query_caches.contains_key(&query_id) {
+            self.query_caches.insert(query_id, QueryCache::new::<Q>());
+        }
+    }
+
+    pub(crate) fn sync(&mut self) {
+        for (bundle_id, meta) in &self.world.metas {
+            if self.cached.contains(&bundle_id) {
+                continue;
             }
+
+            for (_, query_cache) in &mut self.query_caches {
+                let pass = (query_cache.pass)(meta.components);
+                query_cache.tables.insert(*bundle_id, pass);
+            }
+            for (_, fetch_cache) in &mut self.fetch_caches {
+                let table = (fetch_cache.contain)(&mut meta.components.to_vec());
+                fetch_cache.tables.insert(*bundle_id, table);
+            }
+
+            self.cached.insert(*bundle_id);
+        }
+    }
+
+    pub(crate) fn new_access<F: WorldFetch, Q: WorldQuery>(&self) -> Access<'_, F, Q> {
+        let fetch_id = TypeId::of::<F>();
+        let query_id = TypeId::of::<Q>();
+
+        let fetch_cache = self.fetch_caches.get(&fetch_id).unwrap();
+
+        let selected_chunks = self
+            .query_caches
+            .get(&query_id)
+            .unwrap()
+            .tables
+            .iter()
+            .filter(|(_, pass)| **pass)
+            .filter_map(|(bundle_id, _)| Some((*bundle_id, fetch_cache.tables.get(bundle_id)?)))
+            .filter_map(|(bundle_id, mapping)| Some((bundle_id, mapping.as_ref()?)))
+            .map(|(bundle_id, mapping_table)| {
+                let chunks = self.world.metas.get(&bundle_id).unwrap().chunks.clone();
+                (mapping_table, chunks)
+            })
+            .collect::<Vec<(&MappingTable, Vec<usize>)>>();
+        Access::<F, Q> {
+            selected_chunks,
+            chunks: &self.world.chunks,
+            _ph: PhantomData,
+        }
+    }
+
+    pub(crate) fn new_command(&self) -> Command {
+        Command::new::<World>(unsafe { transmute_ref(self.world) })
+    }
+
+    pub(crate) fn new_resources(&self) -> Resources {
+        Resources::new::<World>(unsafe { transmute_ref(self.world) })
+    }
+
+    pub fn add_system<S: System<'a> + 'static>(&'a mut self, mut system: S) -> &mut Self {
+        self.temp_system_state = Default::default();
+        system.init(self);
+        self.systems.push(Box::new(system));
+        self
+    }
+
+    pub fn add_resources<R: Any>(&mut self, r: R) -> &mut Self {
+        self.world.resources.insert(TypeId::of::<R>(), Box::new(r));
+        self
+    }
+
+    pub fn build(mut self) -> Schedule<'a> {
+        let mut systems = Vec::with_capacity(self.systems.len());
+        systems.append(&mut self.systems);
+
+        Schedule {
+            inner: self,
+            systems,
         }
     }
 }
 
-/// 调度
 ///
-/// 实现此trait 后 就可以作为System的参数
-///
-///
-/// ### 受到调度的有:
-///
-/// * Access(从[Chunk]中获取数据)
-/// (多个&不交叉)
-///
-/// * Resources(从[World]访问资源)
-/// (多个/不存在)
-///
-/// * Commands(操纵[World],操纵[Entity])
-/// (多个/不存在)
-///
-/// [Chunk]:crate
-/// [Entity]:crate
-///
-/// ### 作用机制
-///
-/// 每一次可以并行运行N个系统,为一组
-///
-/// 一组全部运行结束后运行下一组
-///
-/// * 唯一 指的是每一组至多有一个
-///
-/// * 多个 指的是每一组可以没有或者有多个
-///
-/// * 不交叉 指的是保证没有数据竞争
-///
-/// Access的操作立刻生效
-///
-/// Resources内部有锁,操作立刻生效,因此可以共享
-///
-/// Commands直到函数结束后写入数据(惰性的)
-///
-pub trait Schedule {
-    /// 两个[WorldFetch]选取的类型可能会有交叉
-    ///
-    /// 并且就此产生别名
-    ///
-    /// 应该避免
-    fn is_conflict<'a>(&self, scheduler: &mut Scheduler<'a>) -> bool;
+pub struct Schedule<'a> {
+    inner: Scheduler<'a>,
+    systems: Vec<Box<dyn System<'a>>>,
+}
+
+impl<'a> Schedule<'a> {
+    pub fn run(&'a mut self) {
+        self.inner.sync();
+
+        for sys in &mut self.systems {
+            sys.run_once(&self.inner);
+        }
+    }
 }

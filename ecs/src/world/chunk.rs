@@ -21,20 +21,21 @@ pub(crate) struct Chunk {
     /// 实际上的容器
     ///
     /// 每个[Bundle]为一个[Components]
-    storage: Vec<Vec<Box<dyn Any>>>,
+    pub(crate) storage: Vec<Vec<Box<dyn Any>>>,
     /// 用来对应位置的组件是否还有效
     ///
     /// 第一位是组建是否被移除
     ///
     /// 其余位是此索引的使用次数
-    alive: Vec<usize>,
+    pub(crate) alive: Vec<usize>,
     /// 缓存被移除的部分
-    removed: Vec<usize>,
+    pub(crate) removed: Vec<usize>,
     /// [Bundle]的TypeId和Components的类型
     pub(crate) meta: (TypeId, &'static [TypeId]),
 }
 
 impl Chunk {
+    #[allow(unused)]
     pub fn new<B: Bundle>() -> Self {
         Self {
             storage: Vec::with_capacity(CHUNK_SIZE),
@@ -127,10 +128,8 @@ impl Chunk {
     }
 
     #[inline]
-    /// 覆盖一个元素
-    pub fn replace(&mut self, index: usize, v: Components) {
-        self.storage[index] = v;
-        self.alive[index] += 1;
+    pub fn len(&self) -> usize {
+        self.storage.len() - self.removed.len()
     }
 }
 

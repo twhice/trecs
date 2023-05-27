@@ -32,7 +32,7 @@ pub struct WithOut<B: Bundle>(PhantomData<B>);
 
 impl<B: Bundle> WorldQuery for WithOut<B> {
     fn pass(components: &[TypeId]) -> bool {
-        'main: for wanna in B::conponents_ids() {
+        for wanna in B::conponents_ids() {
             for cid in components {
                 if *wanna == *cid {
                     return false;
@@ -55,5 +55,11 @@ impl<B: Bundle> WorldQuery for AnyOf<B> {
             }
         }
         false
+    }
+}
+
+impl WorldQuery for () {
+    fn pass(_components: &[TypeId]) -> bool {
+        true
     }
 }

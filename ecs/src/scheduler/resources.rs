@@ -24,6 +24,10 @@ impl<'a> Resources<'a> {
             .downcast_mut()
     }
 
+    pub fn insert<R: Any>(&mut self, r: R) -> Option<Box<dyn Any>> {
+        self.inner.inner_insert(TypeId::of::<R>(), Box::new(r))
+    }
+
     pub fn contain<R: Any>(&self) -> bool {
         self.inner.inner_contain(TypeId::of::<R>())
     }

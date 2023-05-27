@@ -8,7 +8,7 @@ use std::{
     collections::{BTreeMap, HashMap},
 };
 
-use crate::{component::bundle::BundleMeta, component::entity::Entity};
+use crate::{component::bundle::BundleMeta, component::entity::Entity, Scheduler};
 use chunk::{Chunk, Components, CHUNK_SIZE};
 
 use self::traits::{InnerCommand, InnerResources};
@@ -34,6 +34,12 @@ impl World {
     #[inline]
     fn locate(entity: Entity) -> (usize, usize) {
         (entity.index / CHUNK_SIZE, entity.index % CHUNK_SIZE)
+    }
+
+    /// 创建调度表
+    #[inline]
+    pub fn scheduler(&mut self) -> Scheduler<'_> {
+        Scheduler::from_world(self)
     }
 }
 
@@ -169,6 +175,13 @@ impl InnerResources for World {
 
     fn inner_get_res(&self, resources_id: TypeId) -> Option<&Box<dyn Any>> {
         self.resources.get(&resources_id)
+    }
+    fn inner_insert(
+        &mut self,
+        resources_id: TypeId,
+        resources: Box<dyn Any>,
+    ) -> Option<Box<dyn Any>> {
+        self.resources.insert(resources_id, resources)
     }
 
     fn inner_contain(&self, resources_id: TypeId) -> bool {

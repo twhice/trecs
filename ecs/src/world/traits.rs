@@ -74,5 +74,10 @@ pub trait InnerCommand {
 pub trait InnerResources {
     fn inner_get_res_mut(&mut self, resources_id: TypeId) -> Option<&mut Box<dyn Any>>;
     fn inner_get_res(&self, resources_id: TypeId) -> Option<&Box<dyn Any>>;
+    fn inner_insert(
+        &mut self,
+        resources_id: TypeId,
+        resources: Box<dyn Any>,
+    ) -> Option<Box<dyn Any>>;
     fn inner_contain(&self, resources_id: TypeId) -> bool;
 }

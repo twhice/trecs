@@ -8,9 +8,9 @@ use super::transmute_lifetime;
 ///
 /// 一种树状的数据结构
 ///
-/// 用于嵌套地通过[Component]生成WorldFetch::Item
+/// 通过[WorldFetch::contain]生成
 ///
-/// 同时通过对[MappingTable]进行检查来避免别名
+/// 以此通过[Components]生成[WorldFetch::Item]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MappingTable {
     Node(Vec<MappingTable>),
@@ -47,9 +47,9 @@ impl MappingTable {
 
     /// 递归地展开为[Vec<usize>]
     ///
-    /// ### 无法还原
+    /// 无法还原
     ///
-    /// 用来检测别名冲突
+    /// * 用来检测别名冲突(TODO)
     pub fn expansion(&self) -> Vec<usize> {
         let mut tmp = vec![];
         match self {
@@ -74,26 +74,30 @@ impl From<Vec<usize>> for MappingTable {
     }
 }
 
-/// 一种"索引"
+/// 对[World]中特定[Bundle]的[Components]获取
 ///
-/// 能够在[World]中选取出特定的元素
+/// [WorldFetch::contain]可以对可能的[Bundle]生成一个[MappingTable]
 ///
-/// 通过创建[MappingTable]并根据这个[MappingTable]来实现
+/// 并根据[MappingTable]将[Components]转化为[WorldFetch::Item]
 ///
-/// [World]: crate::world::World
+/// [World]: crate
+/// [Bundle]: crate
 pub trait WorldFetch: Any {
+    /// [Components]根据[MappingTable]转化的结果
+    ///
+    /// 也就是[WorldFetch]实际拿取的元素
     type Item<'a>;
 
-    /// 通过[Components]生成Item
+    /// 通过[Components],根据[MappingTable]生成[WorldFetch::Item]
     ///
     /// 内部使用了一些rust unsafe黑魔法
     ///
     /// 不会检查[MappingTable]是否有效,是否正确
     unsafe fn build<'a>(components: &Components, mapping: &MappingTable) -> Self::Item<'a>;
 
-    /// 用来检测能不能从[Components]中取得Item
+    /// 用来检测能不能从[Components]中取得[WorldFetch::Item]
     ///
-    /// 如果能 会返回一个[MappingTable]
+    /// 如果能,会返回一个[MappingTable]
     ///
     /// 调用时应该新建一个[Vec]并传入一个可变引用
     ///
@@ -181,6 +185,10 @@ mod _impl {
 
     impl_fetch!(A);
     impl_fetch!(A, B);
+    impl_fetch!(A, B, C);
+    impl_fetch!(A, B, C, D);
+    impl_fetch!(A, B, C, D, E);
+    impl_fetch!(A, B, C, D, E, F);
 }
 
 #[cfg(test)]

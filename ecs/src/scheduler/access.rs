@@ -28,7 +28,7 @@ pub struct Access<'a, F: WorldFetch, Q: WorldQuery = ()> {
 }
 
 impl<'a, F: WorldFetch, Q: WorldQuery> Access<'a, F, Q> {
-    pub fn bundle_iter(&'a mut self) -> BundleIters<'a, F, Q> {
+    pub fn bundle_iter(&'_ mut self) -> BundleIters<'a, F, Q> {
         let iters = self
             .selected_chunks
             .iter()

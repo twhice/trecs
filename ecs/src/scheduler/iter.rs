@@ -13,6 +13,11 @@ use super::{
     query::WorldQuery,
 };
 
+/// 对于单一[Bundle]的所有[Chunk]的迭代器
+///
+/// [Iterator::Item]为[WorldFetch::Item]
+///
+/// [Bundle]: crate
 pub struct BundleIter<'a, F: WorldFetch, Q: WorldQuery> {
     pub(crate) mapping: &'a MappingTable,
     pub(crate) chunks: &'a Vec<Chunk>,
@@ -67,6 +72,10 @@ impl<'a, F: WorldFetch, Q: WorldQuery> BundleIter<'a, F, Q> {
 /// 实体组件
 ///
 /// 在[WorldFetch::Item]之外还保留了[Entity]
+///
+/// 也就可以根据[Entity]做到"删除","返回"[Components]
+///
+/// [Components]: crate
 pub struct EntityBundle<I> {
     pub(crate) inner: I,
     pub(crate) entity: Entity,
@@ -95,6 +104,13 @@ impl<I> DerefMut for EntityBundle<I> {
     }
 }
 
+/// 对于单一[Bundle]的所有[Chunk]的迭代器
+///
+/// [Iterator::Item]为[EntityBundle<WorldFetch::Item>]
+///
+/// 相比于[BundleIter]额外附带了[Iterator::Item]对应的[Entity]
+///
+/// [Bundle]: crate
 pub struct EntityBundleIter<'a, F: WorldFetch, Q: WorldQuery> {
     pub(super) inner: BundleIter<'a, F, Q>,
 }
@@ -117,6 +133,12 @@ impl<'a, F: WorldFetch, Q: WorldQuery> Iterator for EntityBundleIter<'a, F, Q> {
     }
 }
 
+/// 对于所有通过[WorldQuery]并且被[WorldFetch]生成[MappingTable]
+/// 的[Bundle]的所有[Chunk]的迭代器
+///
+/// [Iterator::Item]为[WorldFetch::Item]
+///
+/// [Bundle]: crate
 pub struct BundleIters<'a, F: WorldFetch, Q: WorldQuery> {
     pub(crate) iters: Vec<BundleIter<'a, F, Q>>,
 }
@@ -135,6 +157,13 @@ impl<'a, F: WorldFetch, Q: WorldQuery> Iterator for BundleIters<'a, F, Q> {
     }
 }
 
+/// 对于所有通过[WorldQuery]并且被[WorldFetch]生成[MappingTable]
+/// 的[Bundle]的所有[Chunk]的迭代器
+///
+/// [Iterator::Item]为[EntityBundle<WorldFetch::Item>]
+/// 相比于[BundleIters]额外附带了[Iterator::Item]对应的[Entity]
+///
+/// [Bundle]: crate
 pub struct EntityBundleIters<'a, F: WorldFetch, Q: WorldQuery> {
     pub(crate) iters: Vec<EntityBundleIter<'a, F, Q>>,
 }

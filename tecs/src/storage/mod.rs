@@ -1,8 +1,9 @@
-pub mod entity;
+mod entity;
+use std::fmt::Debug;
+
+pub use entity::Entity;
 
 use crate::bundle::{Bundle, Components};
-
-use self::entity::Entity;
 
 /// 一个[Chunk]的大小
 ///
@@ -106,6 +107,11 @@ impl Chunk {
         let index = entity.index % CHUNK_SIZE;
         Some(*self.alive.get(index)? == entity.generator)
     }
+
+    /// 空闲空间的长度
+    pub fn free(&self) -> usize {
+        CHUNK_SIZE - self.bundles.len() + self.removed.len()
+    }
 }
 
 #[cfg(test)]
@@ -134,5 +140,18 @@ mod tests {
 
         // 换成更大的,再插进去
         assert_eq!(chunk.insert(114514), Ok(Entity::new(ALIVE_TAG + 1, 1)))
+    }
+}
+
+impl Debug for Chunk {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Chunk")
+            // 因为Component  不能 Debug
+            // .field("bundles", &self.bundles)
+            .field("bundles", &"...")
+            .field("alive", &self.alive)
+            .field("removed", &self.removed)
+            .field("index", &self.index)
+            .finish()
     }
 }

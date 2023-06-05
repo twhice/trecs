@@ -15,5 +15,7 @@ pub trait Bundle: Any {
     fn destory(self) -> Components;
 
     /// [Bundle]中所有[Component]的[TypeId]
-    fn components_ids(&self) -> &[TypeId];
+    fn components_ids() -> &'static [TypeId];
+
+    fn conponents_name() -> &'static str;
 }

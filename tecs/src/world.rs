@@ -3,13 +3,16 @@ use std::{any::TypeId, collections::HashMap};
 use crate::{
     bundle::{Bundle, BundleMeta},
     storage::{Chunk, Entity, CHUNK_SIZE},
+    system::System,
     traits::command::Command,
 };
 
-#[derive(Debug)]
 pub struct World {
     pub(crate) chunks: Vec<Chunk>,
     pub(crate) metas: HashMap<TypeId, BundleMeta>,
+
+    pub(crate) startup_systems: Vec<Box<dyn System>>,
+    pub(crate) systems: Vec<Box<dyn System>>,
 }
 
 impl World {
@@ -17,6 +20,8 @@ impl World {
         Self {
             chunks: vec![],
             metas: Default::default(),
+            startup_systems: vec![],
+            systems: vec![],
         }
     }
 
@@ -31,6 +36,59 @@ impl World {
             .push(self.chunks.len());
         self.chunks.push(Chunk::new(self.chunks.len()));
         self.chunks.last_mut().unwrap()
+    }
+    #[allow(unused)]
+    pub(crate) fn exec<S: System>(&self, mut s: S) {
+        unsafe {
+            s.run_once(self);
+        }
+    }
+
+    /// 添加一个[System]
+    ///
+    /// 每次循环都会执行
+    pub fn add_system<S: System>(&mut self, system: S) -> &mut Self {
+        self.systems.push(Box::new(system));
+        self
+    }
+
+    /// 添加一个[System]
+    ///
+    /// 只会在刚开始循环时执行一次
+    pub fn add_startup_system<S: System>(&mut self, system: S) -> &mut Self {
+        self.startup_systems.push(Box::new(system));
+        self
+    }
+
+    /// 进入一个死循环,直到线程终结
+    ///
+    /// 在执行一次所有被添加进startup_systems的[System]后
+    ///
+    /// 会进入循环,每次循环执行systems里的所有[System]
+    pub fn run(&mut self) {
+        self.run_until(|| false)
+    }
+
+    pub fn run_until<F>(&mut self, mut until: F)
+    where
+        F: FnMut() -> bool,
+    {
+        #[allow(cast_ref_to_mut)]
+        let this = unsafe { &mut *(self as *const _ as *mut World) };
+        for startup in &mut self.startup_systems {
+            unsafe {
+                startup.run_once(&this);
+            }
+        }
+
+        loop {
+            if until() {
+                return;
+            }
+            for sys in &mut self.systems {
+                unsafe { sys.run_once(&this) }
+            }
+        }
     }
 }
 

@@ -1,4 +1,5 @@
 mod entity;
+pub mod iter;
 use std::fmt::Debug;
 
 pub use entity::Entity;
@@ -70,10 +71,7 @@ impl Chunk {
             Some(slot) => {
                 self.bundles[slot] = b.destory();
                 self.alive[slot] += ALIVE_TAG + 1;
-                return Ok(Entity::new(
-                    self.alive[slot],
-                    self.index * CHUNK_SIZE + slot,
-                ));
+                return Ok(self.gen_entity(slot));
             }
             None => return Err(b),
         }
@@ -111,6 +109,10 @@ impl Chunk {
     /// 空闲空间的长度
     pub fn free(&self) -> usize {
         CHUNK_SIZE - self.bundles.len() + self.removed.len()
+    }
+
+    pub fn gen_entity(&self, index: usize) -> Entity {
+        Entity::new(self.alive[index], self.index * CHUNK_SIZE + index)
     }
 }
 

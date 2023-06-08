@@ -1,6 +1,8 @@
-use std::any::TypeId;
+use std::any::{Any, TypeId};
 
-use crate::bundle::{Component, Components};
+#[allow(unused_imports)]
+use crate::bundle::{Bundle, Component, Components};
+use crate::system::state::AliasMap;
 
 /// # 介绍
 ///
@@ -25,8 +27,8 @@ use crate::bundle::{Component, Components};
 /// 上面三种[Bundle]中都有相同的[Component] : [i32]
 ///
 /// 那么每种[Bundle]根据[WorldFetch]生成一个[MappingTable],
-/// 就可以根据[Mapping]生成统一的Item
-///
+/// 就可以根据[MappingTable]生成统一的Item
+#[derive(Debug, Clone)]
 pub enum MappingTable {
     Node(Vec<MappingTable>),
     Mapping(usize),
@@ -54,7 +56,7 @@ impl MappingTable {
 ///
 /// 并且通过从不同[Bundle]生成不同[MappingTable],
 /// 来做到生成同一[WorldFetch::Item]
-pub trait WorldFetch {
+pub trait WorldFetch: Any {
     /// 转化的目标 通常即就是实现这个特征的类型
     type Item<'a>;
 
@@ -69,6 +71,11 @@ pub trait WorldFetch {
     /// + 返回[Some]说明可以通过[MappingTable]转换[Components]为[WorldFetch::Item]
     /// + 返回[None]代表无法转换
     fn contain(components_ids: &mut Vec<TypeId>) -> Option<MappingTable>;
+
+    /// 计算[WorldFetch]可能导致的别名冲突
+    ///
+    /// 如果存在别名冲突,带有发生冲突的[WorldFetch]在第一次执行时会发生painc
+    fn alias_conflict(alias_map: &mut AliasMap);
 }
 
 impl<T: Component> WorldFetch for &'static T {
@@ -88,9 +95,13 @@ impl<T: Component> WorldFetch for &'static T {
         components_ids.remove(mapping);
         Some(MappingTable::Mapping(mapping))
     }
+
+    fn alias_conflict(alias_map: &mut AliasMap) {
+        alias_map.insert::<Self, T>(crate::system::state::Alias::Imut)
+    }
 }
 
-impl<T: Component> WorldFetch for &'static mut T {
+impl<'t: 'static, T: Component> WorldFetch for &'t mut T {
     type Item<'a> = &'a mut T;
 
     unsafe fn build<'a>(
@@ -110,11 +121,15 @@ impl<T: Component> WorldFetch for &'static mut T {
         components_ids.remove(mapping);
         Some(MappingTable::Mapping(mapping))
     }
+
+    fn alias_conflict(alias_map: &mut AliasMap) {
+        alias_map.insert::<Self, T>(crate::system::state::Alias::Mut)
+    }
 }
 
 #[rustfmt::skip]
 mod __impl {
-    use super::{Components, MappingTable, TypeId, WorldFetch};
+    use super::{Components, MappingTable, TypeId, WorldFetch,AliasMap};
     macro_rules! impl_fetch {
         ($($t:ident),*) => {
             impl<$($t:WorldFetch),*> WorldFetch for ($($t,)*){
@@ -137,10 +152,14 @@ mod __impl {
                     )*
                     Some(MappingTable::Node(mappings))
                 }
+
+                fn alias_conflict(alias_map: &mut AliasMap) {
+                    $($t::alias_conflict(alias_map);)*
+                }
             }
         };
     }
     
     // 一次性从(T0)impl到(T0,T1,..,T15)
-    proc::all_tuple!(impl_fetch,16);
+    proc::all_tuple!(impl_fetch, 16);
 }

@@ -4,6 +4,11 @@ use std::{
     fmt::Debug,
 };
 
+use crate::traits::{
+    fetch::{MappingTable, WorldFetch},
+    filter::WorldFilter,
+};
+
 use super::Bundle;
 
 /// 一个[Bundle]的信息
@@ -24,7 +29,7 @@ pub struct BundleMeta {
     /// 每种[WorldFetch]对于此[Bundle]的[MappingTable]
     ///
     /// 避免每次都重新计算
-    pub fetch_cache: HashMap<TypeId, ()>,
+    pub fetch_cache: HashMap<TypeId, MappingTable>,
     /// [World]中所有存放此类[Bundle]的[Chunk]的下标
     pub chunks: Vec<usize>,
 
@@ -41,6 +46,29 @@ impl BundleMeta {
             chunks: vec![],
             bundle_info: (type_name::<B>(), B::conponents_name()),
         }
+    }
+
+    pub fn filter<F: WorldFilter>(&mut self) -> bool {
+        let filter_id = TypeId::of::<F>();
+        if !self.filter_cache.contains_key(&filter_id) {
+            self.filter_cache
+                .insert(filter_id, F::filter(self.components_ids));
+        }
+        self.filter_cache.get(&filter_id).copied().unwrap()
+    }
+
+    pub fn fetch<F: WorldFetch>(&mut self) -> Option<&MappingTable> {
+        let fetch_id = TypeId::of::<F>();
+        if !self.fetch_cache.contains_key(&fetch_id) {
+            let mapping_table = F::contain(&mut self.components_ids.to_vec());
+            match mapping_table {
+                Some(mapping_table) => {
+                    self.fetch_cache.insert(fetch_id, mapping_table);
+                }
+                None => {}
+            }
+        }
+        self.fetch_cache.get(&fetch_id)
     }
 }
 

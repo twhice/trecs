@@ -20,7 +20,7 @@ mod __impl {
     use std::{
         any::{type_name, Any, TypeId},
         cell::OnceCell,
-        collections::{HashMap, HashSet},
+        collections::HashMap,
     };
 
     macro_rules! impl_components {

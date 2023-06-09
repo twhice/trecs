@@ -34,17 +34,6 @@ impl<'a, F: WorldFetch, Q: WorldFilter> Query<'a, F, Q> {
     }
 }
 
-impl<F: WorldFetch, Q: WorldFilter> FnSystemParm for Query<'_, F, Q> {
-    unsafe fn build(world: &World) -> Self {
-        let world: &'static World = std::mem::transmute(world);
-        Query::<'_, F, Q>::new(world)
-    }
-
-    unsafe fn init(state: &mut crate::system::state::SystemState) {
-        F::alias_conflict(&mut state.alias_map);
-    }
-}
-
 impl<'a, F: WorldFetch + 'a, Q: WorldFilter> IntoIterator for Query<'a, F, Q> {
     type Item = F::Item<'a>;
 
@@ -55,5 +44,16 @@ impl<'a, F: WorldFetch + 'a, Q: WorldFilter> IntoIterator for Query<'a, F, Q> {
             #[allow(mutable_transmutes)]
             Iter::new::<Q>(std::mem::transmute(self.world))
         }
+    }
+}
+
+impl<F: WorldFetch, Q: WorldFilter> FnSystemParm for Query<'_, F, Q> {
+    unsafe fn build(world: &World) -> Self {
+        let world: &'static World = std::mem::transmute(world);
+        Query::<'_, F, Q>::new(world)
+    }
+
+    unsafe fn init(state: &mut crate::system::state::SystemState) {
+        F::alias_conflict(&mut state.alias_map);
     }
 }

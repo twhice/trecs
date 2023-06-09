@@ -1,5 +1,9 @@
 mod query;
-pub use query::Query;
+mod resources;
+pub use self::{
+    query::Query,
+    resources::{Res, Resources},
+};
 
 use crate::world::World;
 

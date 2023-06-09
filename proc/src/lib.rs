@@ -76,7 +76,7 @@ pub fn fnsystem(attr: TokenStream, fndef: TokenStream) -> TokenStream {
     let args_tys2 = args_tys.clone();
 
     let result = quote! {
-        fn #fn_name (world : &::tecs::world::World){
+        fn #fn_name (world : &::tecs::World){
             #fndef
             static mut INITED : ::std::cell::OnceCell<()> = ::std::cell::OnceCell::new();
             unsafe{

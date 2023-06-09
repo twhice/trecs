@@ -18,7 +18,8 @@ pub mod system;
 /// [World]:crate
 pub mod traits;
 /// 最终的容器
-pub mod world;
+mod world;
+pub use world::World;
 
 pub mod proc {
     pub use proc::fnsystem;

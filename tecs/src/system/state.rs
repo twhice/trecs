@@ -1,6 +1,6 @@
 use std::{
     any::{type_name, Any, TypeId},
-    collections::HashMap,
+    collections::{HashMap, HashSet},
 };
 
 use crate::traits::fetch::WorldFetch;
@@ -15,12 +15,16 @@ use crate::traits::fetch::WorldFetch;
 /// 仅仅在[System]第一次执行时进行计算,
 pub struct SystemState {
     pub(crate) alias_map: AliasMap,
+    pub(crate) resources: bool,
+    pub(crate) res: HashSet<TypeId>,
 }
 
 impl SystemState {
     pub fn new() -> Self {
         Self {
             alias_map: Default::default(),
+            resources: false,
+            res: Default::default(),
         }
     }
 }

@@ -1,17 +1,24 @@
-use std::{any::TypeId, collections::HashMap};
+use std::{
+    any::{Any, TypeId},
+    cell::UnsafeCell,
+    collections::HashMap,
+};
 
 use crate::{
     bundle::{Bundle, BundleMeta},
     storage::{Chunk, Entity, CHUNK_SIZE},
-    system::System,
-    traits::command::Command,
+    system::{fnsys::Res, System},
+    traits::{command::Command, resources::ResManager},
 };
+
+type AnRes = UnsafeCell<Option<Box<dyn Any>>>;
 
 pub struct World {
     pub(crate) chunks: Vec<Chunk>,
     pub(crate) metas: HashMap<TypeId, BundleMeta>,
     pub(crate) startup_systems: Vec<Box<dyn System>>,
     pub(crate) systems: Vec<Box<dyn System>>,
+    pub(crate) resources: HashMap<TypeId, AnRes>,
 }
 
 impl World {
@@ -21,6 +28,7 @@ impl World {
             metas: Default::default(),
             startup_systems: vec![],
             systems: vec![],
+            resources: Default::default(),
         }
     }
 
@@ -185,6 +193,30 @@ impl Command for World {
             .get_mut(entity.index / CHUNK_SIZE)
             .and_then(|chunk| Some(chunk.remove(entity)))
             .unwrap_or(false)
+    }
+}
+
+impl ResManager for World {
+    fn get_res<T: 'static>(&mut self) -> Res<'_, T> {
+        let t_id = TypeId::of::<T>();
+        if !self.resources.contains_key(&t_id) {
+            self.resources.insert(t_id, UnsafeCell::new(None));
+        }
+        let res = self.resources.get_mut(&t_id).unwrap().get_mut();
+        Res::new(res)
+    }
+
+    fn try_get_res<T: 'static>(&mut self) -> Option<Res<'_, T>> {
+        let t_id = TypeId::of::<T>();
+        let res = self.resources.get_mut(&t_id)?.get_mut();
+        Some(Res::new(res))
+    }
+
+    fn new_res<T: 'static>(&mut self) {
+        let t_id = TypeId::of::<T>();
+        if !self.resources.contains_key(&t_id) {
+            self.resources.insert(t_id, UnsafeCell::new(None));
+        }
     }
 }
 

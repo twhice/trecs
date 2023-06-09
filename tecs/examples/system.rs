@@ -4,7 +4,7 @@ use tecs::bundle::{Bundle, Component};
 use tecs::proc::fnsystem;
 use tecs::system::fnsys::Query;
 use tecs::traits::command::Command;
-use tecs::world::World;
+use tecs::World;
 
 #[derive(Bundle)]
 struct Str {

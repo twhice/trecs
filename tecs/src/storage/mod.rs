@@ -6,12 +6,22 @@ pub(crate) use iter::ChunkIter;
 
 use crate::bundle::{Bundle, Components};
 use std::fmt::Debug;
+
 /// 一个[Chunk]的大小
 ///
 /// [Chunk]中存放的[Bundle]的数量
 pub const CHUNK_SIZE: usize = 1024;
+
 /// 用来标记[Entity]
+#[cfg(target_pointer_width = "64")]
 pub const ALIVE_TAG: usize = 1 << 63;
+#[cfg(target_pointer_width = "32")]
+// 不会吧不会吧,3202年了还有人用32位计算机
+pub const ALIVE_TAG: usize = 1 << 31;
+#[cfg(target_pointer_width = "16")]
+// 不会吧不会吧,3202年了还tm有人用用16位计算机???
+// 就那点寻址空间带的动ecs吗
+pub const ALIVE_TAG: usize = 1 << 15;
 /// 存放[Bundle]的容器
 ///
 /// + 放入[Bundle]

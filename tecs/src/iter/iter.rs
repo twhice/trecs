@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
 use crate::{
-    storage::{iter::ChunkIter, Chunk},
+    storage::{Chunk, ChunkIter},
     traits::{
         fetch::{MappingTable, WorldFetch},
         filter::WorldFilter,
@@ -9,7 +9,8 @@ use crate::{
     world::World,
 };
 
-pub struct Select<'a> {
+#[derive(Debug, Clone)]
+pub(crate) struct Select<'a> {
     inner: Vec<(&'a MappingTable, Vec<&'a Chunk>)>,
 }
 
@@ -18,24 +19,22 @@ impl Select<'_> {
         world
             .metas
             .iter_mut()
-            .filter_map(
-                |(.., meta)| {
-                    if meta.filter::<Q>() {
-                        Some(meta)
-                    } else {
-                        None
-                    }
-                },
-            )
+            .filter_map(|(.., meta)| {
+                if meta.filter::<Q>() && meta.fetch::<F>().is_some() {
+                    Some(meta)
+                } else {
+                    None
+                }
+            })
             .filter_map(|meta| {
-                Some((
-                    meta.chunks
-                        .iter()
-                        .copied()
-                        .map(|cid| &world.chunks[cid])
-                        .collect::<Vec<_>>(),
-                    meta.fetch::<F>()?,
-                ))
+                let chunks = meta
+                    .chunks
+                    .iter()
+                    .copied()
+                    .map(|cid| &world.chunks[cid])
+                    .collect::<Vec<_>>();
+                let mapping_table = meta.fetch::<F>()?;
+                Some((chunks, mapping_table))
             })
             .map(|(a, b)| (b, a))
             .collect::<Vec<_>>()
@@ -58,6 +57,7 @@ impl<'a> From<Vec<(&'a MappingTable, Vec<&'a Chunk>)>> for Select<'a> {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct Iter<'a, F: WorldFetch> {
     select: Select<'a>,
     pub(crate) iter: Option<(&'a MappingTable, ChunkIter<'a>)>,

@@ -10,7 +10,6 @@ use crate::{
 pub struct World {
     pub(crate) chunks: Vec<Chunk>,
     pub(crate) metas: HashMap<TypeId, BundleMeta>,
-
     pub(crate) startup_systems: Vec<Box<dyn System>>,
     pub(crate) systems: Vec<Box<dyn System>>,
 }
@@ -30,7 +29,7 @@ impl World {
     /// 防止诸如"meta和实际不一致","chunk.index不正确"等错位问题
     pub(crate) fn new_chunk<B: Bundle>(&mut self) -> &mut Chunk {
         self.metas
-            .get_mut(&TypeId::of::<B>())
+            .get_mut(&B::type_id_())
             .unwrap()
             .chunks
             .push(self.chunks.len());
@@ -73,6 +72,9 @@ impl World {
     where
         F: FnMut() -> bool,
     {
+        // stable没下面的"cast_ref_to_mut" 所以需要下面的allow
+        #[allow(unknown_lints)]
+        // nightly版本会deny 所以这需要allow
         #[allow(cast_ref_to_mut)]
         let this = unsafe { &mut *(self as *const _ as *mut World) };
         for startup in &mut self.startup_systems {
@@ -104,7 +106,7 @@ fn rev_result<T, E>(result: Result<T, E>) -> Result<E, T> {
 
 impl Command for World {
     fn register<B: crate::bundle::Bundle>(&mut self) {
-        let bundle_id = TypeId::of::<B>();
+        let bundle_id = B::type_id_();
         if !self.metas.contains_key(&bundle_id) {
             self.metas.insert(bundle_id, BundleMeta::new::<B>());
         }
@@ -112,7 +114,7 @@ impl Command for World {
 
     fn spawn<B: crate::bundle::Bundle>(&mut self, b: B) -> crate::storage::Entity {
         self.register::<B>();
-        let bundle_id = TypeId::of::<B>();
+        let bundle_id = B::type_id_();
         let mut bundle = Some(b);
 
         let meta = self.metas.get_mut(&bundle_id).unwrap();
@@ -135,7 +137,7 @@ impl Command for World {
     ) -> Vec<Entity> {
         // 注册&&准备meta
         self.register::<B>();
-        let meta = self.metas.get_mut(&TypeId::of::<B>()).unwrap();
+        let meta = self.metas.get_mut(&B::type_id_()).unwrap();
 
         // 准备迭代器和返回
         let mut i = i.into_iter();

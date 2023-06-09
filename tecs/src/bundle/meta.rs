@@ -39,12 +39,12 @@ pub struct BundleMeta {
 impl BundleMeta {
     pub fn new<B: Bundle>() -> Self {
         Self {
-            bundle_id: TypeId::of::<B>(),
+            bundle_id: B::type_id_(),
             components_ids: B::components_ids(),
             filter_cache: Default::default(),
             fetch_cache: Default::default(),
             chunks: vec![],
-            bundle_info: (type_name::<B>(), B::conponents_name()),
+            bundle_info: (type_name::<B>(), B::type_name()),
         }
     }
 
@@ -58,7 +58,7 @@ impl BundleMeta {
     }
 
     pub fn fetch<F: WorldFetch>(&mut self) -> Option<&MappingTable> {
-        let fetch_id = TypeId::of::<F>();
+        let fetch_id = F::Bundle::type_id_();
         if !self.fetch_cache.contains_key(&fetch_id) {
             let mapping_table = F::contain(&mut self.components_ids.to_vec());
             match mapping_table {

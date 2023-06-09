@@ -1,4 +1,4 @@
-use std::any::{Any, TypeId};
+use std::any::TypeId;
 
 #[allow(unused_imports)]
 use crate::bundle::{Bundle, Component, Components};
@@ -56,9 +56,11 @@ impl MappingTable {
 ///
 /// 并且通过从不同[Bundle]生成不同[MappingTable],
 /// 来做到生成同一[WorldFetch::Item]
-pub trait WorldFetch: Any {
+pub trait WorldFetch {
     /// 转化的目标 通常即就是实现这个特征的类型
     type Item<'a>;
+
+    type Bundle: Bundle;
 
     /// 从[Componnets],根据[MappingTable]生成[WorldFetch::Item]
     ///
@@ -78,8 +80,10 @@ pub trait WorldFetch: Any {
     fn alias_conflict(alias_map: &mut AliasMap);
 }
 
-impl<T: Component> WorldFetch for &'static T {
+impl<T: Component> WorldFetch for &T {
     type Item<'a> = &'a T;
+
+    type Bundle = &'static T;
 
     unsafe fn build<'a>(
         components: &'a Components,
@@ -93,6 +97,7 @@ impl<T: Component> WorldFetch for &'static T {
     fn contain(components_ids: &mut Vec<TypeId>) -> Option<MappingTable> {
         let mapping = components_ids.binary_search(&TypeId::of::<T>()).ok()?;
         components_ids.remove(mapping);
+
         Some(MappingTable::Mapping(mapping))
     }
 
@@ -101,8 +106,10 @@ impl<T: Component> WorldFetch for &'static T {
     }
 }
 
-impl<'t: 'static, T: Component> WorldFetch for &'t mut T {
+impl<T: Component> WorldFetch for &'_ mut T {
     type Item<'a> = &'a mut T;
+
+    type Bundle = &'static mut T;
 
     unsafe fn build<'a>(
         components: &'a Components,
@@ -134,6 +141,8 @@ mod __impl {
         ($($t:ident),*) => {
             impl<$($t:WorldFetch),*> WorldFetch for ($($t,)*){
                 type Item<'a> = ($($t::Item<'a>,)*);
+
+                type Bundle = ($($t::Bundle,)*);
 
                 unsafe fn build<'a>(
                     components: &'a Components,

@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use super::FnSystemParm;
 use crate::{
-    iter::{ebundle::EIter, iter::Iter},
+    iter::{EIter, Iter},
     traits::{fetch::WorldFetch, filter::WorldFilter},
     world::World,
 };
@@ -14,6 +14,7 @@ use crate::{bundle::Components, system::fnsys::FnSystem};
 /// 用来操作从world中选定的部分[Components]
 ///
 /// 有可能会出现别名冲突导致[FnSystem]第一次运行时painc
+#[derive(Clone)]
 pub struct Query<'a, F: WorldFetch, Q: WorldFilter = ()> {
     world: &'a World,
     _p: PhantomData<(F, Q)>,
@@ -50,8 +51,8 @@ impl<'a, F: WorldFetch + 'a, Q: WorldFilter> IntoIterator for Query<'a, F, Q> {
     type IntoIter = Iter<'a, F>;
 
     fn into_iter(self) -> Self::IntoIter {
-        #[allow(mutable_transmutes)]
         unsafe {
+            #[allow(mutable_transmutes)]
             Iter::new::<Q>(std::mem::transmute(self.world))
         }
     }

@@ -1,4 +1,5 @@
-pub mod query;
+mod query;
+pub use query::Query;
 
 use crate::world::World;
 

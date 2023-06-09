@@ -1,4 +1,4 @@
-use std::any::Any;
+use std::any::{Any, TypeId};
 
 use super::Bundle;
 /// 最基本的构成单元
@@ -8,7 +8,9 @@ use super::Bundle;
 /// 此特征实际上只是一个标记
 ///
 /// [Bundle]:crate
-pub trait Component: Any {}
+pub trait Component: Any {
+    fn type_id_() -> TypeId;
+}
 
 pub type Components = Vec<Box<dyn Any>>;
 
@@ -18,11 +20,16 @@ mod __impl {
     use std::{
         any::{type_name, Any, TypeId},
         cell::OnceCell,
+        collections::{HashMap, HashSet},
     };
 
     macro_rules! impl_components {
         ($($t:ty),*) => {
-            $(impl Component for $t{})*
+            $(impl Component for $t{
+                fn type_id_() -> TypeId{
+                    TypeId::of::<Self>()
+                }
+            })*
         };
     }
 
@@ -30,9 +37,20 @@ mod __impl {
     impl_components!(i8, i16, i32, i64, isize, i128);
     impl_components!(bool, (), &'static str);
 
+    impl<C: Component> Component for &'static C {
+        fn type_id_() -> TypeId {
+            TypeId::of::<Self>()
+        }
+    }
+    impl<C: Component> Component for &'static mut C {
+        fn type_id_() -> TypeId {
+            TypeId::of::<Self>()
+        }
+    }
+
     macro_rules! impl_bundle {
         ($($t:ident),*) => {
-            impl<$($t:Component),*> Bundle for ($($t,)*) {
+            impl<$($t:Bundle),*> Bundle for ($($t,)*) {
                 fn destory(self) -> Components{
                     let ($($t,)*) = self;
                     vec![
@@ -41,16 +59,23 @@ mod __impl {
                 }
 
                 fn components_ids() -> &'static [TypeId] {
-                    static mut COMPONENT_ID : OnceCell<Vec<TypeId>> = OnceCell::new();
-                    unsafe{
-                        COMPONENT_ID.get_or_init(||
-                            vec![$(TypeId::of::<$t>(),)*]
-                        )
+                    static mut COMPONENT_IDS: OnceCell<HashMap<TypeId, Vec<TypeId>>> = OnceCell::new();
+                    unsafe {
+                        COMPONENT_IDS.get_or_init(|| HashMap::new());
+                        let hashset = COMPONENT_IDS.get_mut().unwrap();
+                        if !hashset.contains_key(&Self::type_id_()) {
+                            hashset.insert(Self::type_id_(), vec![$($t::type_id_(),)*]);
+                        }
+                        hashset.get(&Self::type_id_()).unwrap()
                     }
                 }
 
-                fn conponents_name() -> &'static str {
+                fn type_name() -> &'static str {
                     type_name::<Self>()
+                }
+
+                fn type_id_() -> TypeId{
+                    TypeId::of::<Self>()
                 }
             }
         };
@@ -69,12 +94,27 @@ mod __impl {
 
         // OnceCell终于稳定了 真香
         fn components_ids() -> &'static [TypeId] {
-            static mut COMPONENT_ID: OnceCell<[TypeId; 1]> = OnceCell::new();
-            unsafe { COMPONENT_ID.get_or_init(|| [TypeId::of::<Self>()]) }
+            // 对于不同Component,会有一个一样的静态变量
+            // static mut COMPONENT_ID: OnceCell<[TypeId; 1]> = OnceCell::new();
+
+            // 所以用上了哈希表
+            static mut COMPONENT_IDS: OnceCell<HashMap<TypeId, [TypeId; 1]>> = OnceCell::new();
+            unsafe {
+                COMPONENT_IDS.get_or_init(|| HashMap::new());
+                let hashset = COMPONENT_IDS.get_mut().unwrap();
+                if !hashset.contains_key(&Self::type_id_()) {
+                    hashset.insert(Self::type_id_(), [Self::type_id_()]);
+                }
+                hashset.get(&Self::type_id_()).unwrap()
+            }
         }
 
-        fn conponents_name() -> &'static str {
+        fn type_name() -> &'static str {
             type_name::<Self>()
+        }
+
+        fn type_id_() -> TypeId {
+            TypeId::of::<Self>()
         }
     }
 }
@@ -87,8 +127,8 @@ mod tests {
     fn test_name() {
         fn print_bundle_meta<B: Bundle>() {
             println!(
-                "bundle: {}\ncomponents: {}",
-                B::conponents_name(),
+                "bundle: {}\nnr_components: {}",
+                B::type_name(),
                 B::components_ids().len(),
             )
         }

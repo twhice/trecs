@@ -2,7 +2,8 @@ use crate::{bundle::Components, storage::ALIVE_TAG};
 
 use super::Chunk;
 
-pub struct ChunkIter<'a> {
+#[derive(Debug, Clone)]
+pub(crate) struct ChunkIter<'a> {
     pub(crate) chunk: &'a Chunk,
     pub(crate) index: usize,
     pub(crate) first: bool,

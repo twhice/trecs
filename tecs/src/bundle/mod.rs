@@ -2,8 +2,9 @@ mod component;
 mod meta;
 use std::any::{Any, TypeId};
 
-pub use component::*;
+pub use component::{Component, Components};
 pub use meta::BundleMeta;
+pub use proc::{Bundle, Component};
 
 /// 一系列[Component]的组合
 ///
@@ -17,5 +18,11 @@ pub trait Bundle: Any {
     /// [Bundle]中所有[Component]的[TypeId]
     fn components_ids() -> &'static [TypeId];
 
-    fn conponents_name() -> &'static str;
+    /// [Bundle]的类型名,是为了方便加上的
+    fn type_name() -> &'static str;
+
+    /// [Bundle]的[TypeId],是为了方便加上的
+    ///
+    /// 多加一个"-"是为了和[Any::type_id()]区分开
+    fn type_id_() -> TypeId;
 }

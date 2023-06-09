@@ -1,11 +1,11 @@
 mod entity;
-pub mod iter;
-use std::fmt::Debug;
+mod iter;
 
 pub use entity::Entity;
+pub(crate) use iter::ChunkIter;
 
 use crate::bundle::{Bundle, Components};
-
+use std::fmt::Debug;
 /// 一个[Chunk]的大小
 ///
 /// [Chunk]中存放的[Bundle]的数量
@@ -18,7 +18,8 @@ pub const ALIVE_TAG: usize = 1 << 63;
 /// + 复用空间,减少内存分配
 /// + 生成[Entity],计算[Entity]有效性
 ///
-pub struct Chunk {
+
+pub(crate) struct Chunk {
     /// 实际存放[Bundle]的[Vec]
     ///
     /// 长度为[CHUNK_SIZE]

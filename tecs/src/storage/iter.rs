@@ -28,7 +28,9 @@ impl<'a> Iterator for ChunkIter<'a> {
         } else {
             self.first = false;
         }
-        while self.chunk.alive.get(self.index).copied()? < ALIVE_TAG {}
+        while self.chunk.alive.get(self.index).copied()? < ALIVE_TAG {
+            self.index += 1;
+        }
         Some(&self.chunk.bundles[self.index])
     }
 }

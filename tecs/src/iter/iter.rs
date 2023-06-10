@@ -87,6 +87,7 @@ impl<'a, F: WorldFetch> Iterator for Iter<'a, F> {
         }
         let (mapping_table, iter) = self.iter.as_mut()?;
         let Some(components) = iter.next()else{
+            
             self.iter  = None;
             return self.next();
         };

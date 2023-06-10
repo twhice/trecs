@@ -43,7 +43,6 @@ pub fn fnsystem(attr: TokenStream, fndef: TokenStream) -> TokenStream {
     // 提取参数列表&&进行一些检查
     let args = {
         let sig = &fndef.sig;
-
         if sig.asyncness.is_some() {
             panic!("#[fnsystem]不可以在异步的函数上使用")
         }
@@ -75,20 +74,26 @@ pub fn fnsystem(attr: TokenStream, fndef: TokenStream) -> TokenStream {
     let args_tys = args.into_iter().map(|pat| pat.ty);
     let args_tys2 = args_tys.clone();
 
+    let vis = &fndef.vis;
+    let new_fn_sig = quote! {
+        #vis fn #fn_name (world : &::tecs::World)
+    };
+
     let result = quote! {
-        fn #fn_name (world : &::tecs::World){
+        #new_fn_sig {
             #fndef
             static mut INITED : ::std::cell::OnceCell<()> = ::std::cell::OnceCell::new();
             unsafe{
                 INITED.get_or_init(||{
                     let mut state = ::tecs::system::state::SystemState::new();
-                    #(<#args_tys2 as ::tecs::system::fnsys::FnSystemParm>::init(&mut state)),*
+                    #(<#args_tys2 as ::tecs::system::fnsys::FnSystemParm>::init(&mut state);)*
                 });
 
                 #fn_name(#(<#args_tys as ::tecs::system::fnsys::FnSystemParm>::build(&world)),*);
             }
         }
     };
+
     result.into()
 }
 
@@ -156,7 +161,6 @@ pub fn bundle(input: TokenStream) -> TokenStream {
                     #type_id_
                 }
             };
-            std::fs::write("/home/twhice/Desktop/proc.txt", format!("{}", result)).unwrap();
 
             result.into()
         }

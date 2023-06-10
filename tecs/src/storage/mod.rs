@@ -22,13 +22,13 @@ pub const ALIVE_TAG: usize = 1 << 31;
 // 不会吧不会吧,3202年了还tm有人用用16位计算机???
 // 就那点寻址空间带的动ecs吗
 pub const ALIVE_TAG: usize = 1 << 15;
+
 /// 存放[Bundle]的容器
 ///
 /// + 放入[Bundle]
 /// + 复用空间,减少内存分配
 /// + 生成[Entity],计算[Entity]有效性
 ///
-
 pub(crate) struct Chunk {
     /// 实际存放[Bundle]的[Vec]
     ///

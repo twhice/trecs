@@ -115,6 +115,8 @@ impl FnSystemParm for Resources<'_> {
     }
 
     unsafe fn init(state: &mut crate::system::state::SystemState) {
+        // 理论上因为UnsafeCell会自己在运行时painc
+        // 但是还是提前制止吧?
         if state.resources || state.res.len() != 0 {
             panic!("Resources不可和其他Resources或者任何Res共存")
         }

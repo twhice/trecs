@@ -28,9 +28,11 @@ impl<'a, F: WorldFetch, Q: WorldFilter> Query<'a, F, Q> {
         }
     }
 
-    pub unsafe fn into_eiter(self) -> EIter<'a, F> {
-        #[allow(mutable_transmutes)]
-        EIter::new::<Q>(std::mem::transmute(self.world))
+    pub fn into_eiter(self) -> EIter<'a, F> {
+        unsafe {
+            #[allow(mutable_transmutes)]
+            EIter::new::<Q>(std::mem::transmute(self.world))
+        }
     }
 }
 

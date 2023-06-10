@@ -14,6 +14,7 @@ struct Str {
 #[derive(Component)]
 struct Str2 {
     #[allow(unused)]
+    // 因为String并不是一个Component
     inner: String,
 }
 
@@ -25,7 +26,9 @@ fn main() {
     }
 
     // 从世界中选取字符串,然后输出
-    #[fnsystem] // Query<'a,F,Q> 这里F是&'static &str代表获取全部&str的不可变引用
+    // Query<'a,F,Q> 这里F是&'static &str代表获取全部&str的不可变引用
+    // 用&'static &str是因为 &str已经有了一个匿名生命周期(大概是吧?)
+    #[fnsystem]
     fn hello_world_from_cs(query: Query<&'static &str>) {
         for str in query {
             println!("{str}")
@@ -34,7 +37,7 @@ fn main() {
 
     // 类似于锁帧
     #[fnsystem]
-    fn wait() {
+    fn twice_pre_s() {
         let instant = Instant::now();
         while instant.elapsed() < Duration::from_secs_f64(1.0 / 2.0) {}
     }
@@ -66,6 +69,6 @@ fn main() {
     world
         .add_system(hello_world)
         .add_system(hello_world_from_cs)
-        .add_system(wait)
+        .add_system(twice_pre_s)
         .run_until(delay);
 }

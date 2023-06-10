@@ -1,6 +1,9 @@
+mod commands;
+
 mod query;
 mod resources;
 pub use self::{
+    commands::Commands,
     query::Query,
     resources::{Res, Resources},
 };

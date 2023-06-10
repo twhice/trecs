@@ -3,7 +3,7 @@ mod meta;
 use std::any::{Any, TypeId};
 
 pub use component::{Component, Components};
-pub use meta::BundleMeta;
+pub(crate) use meta::BundleMeta;
 pub use proc::{Bundle, Component};
 
 /// 一系列[Component]的组合

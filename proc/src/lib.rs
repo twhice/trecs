@@ -38,7 +38,7 @@ pub fn all_tuple(input: TokenStream) -> TokenStream {
 pub fn fnsystem(attr: TokenStream, fndef: TokenStream) -> TokenStream {
     assert!(attr.is_empty(), "#[fnsystem]不应带有任何属性");
     let fndef = parse_macro_input!(fndef as syn::ItemFn);
-    let fn_name = fndef.sig.ident.clone();
+    let fn_name = &fndef.sig.ident;
 
     // 提取参数列表&&进行一些检查
     let args = {
@@ -100,8 +100,8 @@ pub fn fnsystem(attr: TokenStream, fndef: TokenStream) -> TokenStream {
 #[proc_macro_derive(Bundle)]
 pub fn bundle(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
-    let struct_name = input.ident.clone();
-    match input.data.clone() {
+    let struct_name = input.ident;
+    match input.data {
         syn::Data::Struct(struct_) => {
             // 1 destory
             let tys = struct_.fields.iter().cloned().map(|field| {
@@ -171,7 +171,7 @@ pub fn bundle(input: TokenStream) -> TokenStream {
 #[proc_macro_derive(Component)]
 pub fn component(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
-    let type_name = input.ident.clone();
+    let type_name = input.ident;
 
     quote! {
         // #input

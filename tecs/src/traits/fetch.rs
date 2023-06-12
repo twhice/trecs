@@ -64,7 +64,13 @@ pub trait WorldFetch {
 
     /// 从[Componnets],根据[MappingTable]生成[WorldFetch::Item]
     ///
+    /// # Safety
+    ///
     /// 因为绕开了rust的别名模型,并且进行了一系列类型转换,标记为unsafe
+    ///
+    /// 安全性实际上已经由[FnSystem]保证
+    ///
+    /// [FnSystem]: crate
     unsafe fn build<'a>(components: &'a Components, mapping_table: &MappingTable)
         -> Self::Item<'a>;
 
@@ -155,10 +161,12 @@ mod __impl {
                 }
 
                 fn contain(components_ids : &mut Vec<TypeId>) -> Option<MappingTable>{
-                    let mut mappings = vec![];
-                    $(
-                        mappings.push($t::contain(components_ids)?);
-                    )*
+                    let  mappings = vec![
+                        $(
+                            $t::contain(components_ids)?,
+                        )*
+                    ];
+                    
                     Some(MappingTable::Node(mappings))
                 }
 

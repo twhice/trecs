@@ -38,13 +38,13 @@ pub struct Not<B: Bundle>(PhantomData<B>);
 impl<B: Bundle> WorldFilter for All<B> {
     fn filter(components_ids: &'static [TypeId]) -> bool {
         let set = B::components_ids()
-            .into_iter()
+            .iter()
             .copied()
             .fold(HashSet::new(), |mut set, id| {
                 set.insert(id);
                 set
             });
-        !components_ids.into_iter().any(|id| !set.contains(id))
+        !components_ids.iter().any(|id| !set.contains(id))
     }
 
     fn filter_by_meta(meta: &mut BundleMeta) -> bool {
@@ -55,13 +55,13 @@ impl<B: Bundle> WorldFilter for All<B> {
 impl<B: Bundle> WorldFilter for AnyOf<B> {
     fn filter(components_ids: &'static [TypeId]) -> bool {
         let set = B::components_ids()
-            .into_iter()
+            .iter()
             .copied()
             .fold(HashSet::new(), |mut set, id| {
                 set.insert(id);
                 set
             });
-        components_ids.into_iter().any(|id| set.contains(id))
+        components_ids.iter().any(|id| set.contains(id))
     }
 
     fn filter_by_meta(meta: &mut BundleMeta) -> bool {
@@ -72,13 +72,13 @@ impl<B: Bundle> WorldFilter for AnyOf<B> {
 impl<B: Bundle> WorldFilter for Not<B> {
     fn filter(components_ids: &'static [TypeId]) -> bool {
         let set = B::components_ids()
-            .into_iter()
+            .iter()
             .copied()
             .fold(HashSet::new(), |mut set, id| {
                 set.insert(id);
                 set
             });
-        !components_ids.into_iter().any(|id| set.contains(id))
+        !components_ids.iter().any(|id| set.contains(id))
     }
 
     fn filter_by_meta(meta: &mut BundleMeta) -> bool {

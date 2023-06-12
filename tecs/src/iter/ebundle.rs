@@ -6,7 +6,7 @@ use crate::{
     world::World,
 };
 
-use super::iter::Iter;
+use super::Iter;
 
 /// 带有[Entity]的[Bundle]
 ///

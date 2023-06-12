@@ -78,7 +78,9 @@ impl AliasMap {
 
     pub fn insert<F: WorldFetch, T: Any>(&mut self, usage: Alias) {
         let (ty, ty_name) = (TypeId::of::<T>(), type_name::<T>());
-        if self.inner.contains_key(&ty) {
+        if let std::collections::hash_map::Entry::Vacant(e) = self.inner.entry(ty) {
+            e.insert((usage, vec![type_name::<F>()]));
+        } else {
             let (alias, users) = self.inner.get_mut(&ty).unwrap();
             if usage.is_mut() && alias.is_imut() {
                 let users = users
@@ -92,8 +94,6 @@ impl AliasMap {
                     type_name::<F>(),ty_name,users[0],ty_name);
             }
             users.push(type_name::<F>());
-        } else {
-            self.inner.insert(ty, (usage, vec![type_name::<F>()]));
         }
     }
 }

@@ -11,5 +11,10 @@ use self::fnsys::FnSystem;
 ///
 /// 目前仅仅支持[FnSystem]
 pub trait System: 'static {
+    /// # Safety
+    ///
+    /// 安全性由具体[System]保证
+    ///
+    /// [FnSystem]需要保证参数不会导致ub,别名,数据竞争
     unsafe fn run_once(&mut self, world: &World);
 }

@@ -83,11 +83,11 @@ impl World {
         // stable没下面的"cast_ref_to_mut" 所以需要下面的allow
         #[allow(unknown_lints)]
         // nightly版本会deny 所以这需要allow
-        #[allow(cast_ref_to_mut)]
+        #[allow(clippy::cast_ref_to_mut)]
         let this = unsafe { &mut *(self as *const _ as *mut World) };
         for startup in &mut self.startup_systems {
             unsafe {
-                startup.run_once(&this);
+                startup.run_once(this);
             }
         }
 
@@ -96,9 +96,15 @@ impl World {
                 return;
             }
             for sys in &mut self.systems {
-                unsafe { sys.run_once(&this) }
+                unsafe { sys.run_once(this) }
             }
         }
+    }
+}
+
+impl Default for World {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -115,9 +121,9 @@ fn rev_result<T, E>(result: Result<T, E>) -> Result<E, T> {
 impl Command for World {
     fn register<B: crate::bundle::Bundle>(&mut self) {
         let bundle_id = B::type_id_();
-        if !self.metas.contains_key(&bundle_id) {
-            self.metas.insert(bundle_id, BundleMeta::new::<B>());
-        }
+        self.metas
+            .entry(bundle_id)
+            .or_insert_with(|| BundleMeta::new::<B>());
     }
 
     fn spawn<B: crate::bundle::Bundle>(&mut self, b: B) -> crate::storage::Entity {
@@ -159,9 +165,10 @@ impl Command for World {
                 let chunk = self.chunks.get_mut(cid)?;
                 let entitiy_iter = (0..chunk.free()).filter_map(|_| {
                     let item = temp.take().or_else(|| i.next())?;
-                    chunk.insert(item).or_else(|b| Err(temp = Some(b))).ok()
+                    chunk.insert(item).map_err(|b| temp = Some(b)).ok()
                 });
-                Some(entities.extend(entitiy_iter))
+                entities.extend(entitiy_iter);
+                Some(())
             })
             .count();
 
@@ -191,7 +198,7 @@ impl Command for World {
     fn remove(&mut self, entity: crate::storage::Entity) -> bool {
         self.chunks
             .get_mut(entity.index / CHUNK_SIZE)
-            .and_then(|chunk| Some(chunk.remove(entity)))
+            .map(|chunk| chunk.remove(entity))
             .unwrap_or(false)
     }
 }
@@ -199,9 +206,9 @@ impl Command for World {
 impl ResManager for World {
     fn get_res<T: 'static>(&mut self) -> Res<'_, T> {
         let t_id = TypeId::of::<T>();
-        if !self.resources.contains_key(&t_id) {
-            self.resources.insert(t_id, UnsafeCell::new(None));
-        }
+        self.resources
+            .entry(t_id)
+            .or_insert_with(|| UnsafeCell::new(None));
         let res = self.resources.get_mut(&t_id).unwrap().get_mut();
         Res::new(res)
     }
@@ -214,9 +221,9 @@ impl ResManager for World {
 
     fn new_res<T: 'static>(&mut self) {
         let t_id = TypeId::of::<T>();
-        if !self.resources.contains_key(&t_id) {
-            self.resources.insert(t_id, UnsafeCell::new(None));
-        }
+        self.resources
+            .entry(t_id)
+            .or_insert_with(|| UnsafeCell::new(None));
     }
 }
 
@@ -251,6 +258,6 @@ mod tests {
         // 新创建一个,因该被放置进chunks[1]
         let entity = world.spawn(12345);
         assert_eq!(world.chunks.len(), 2);
-        assert_eq!(entity.index, CHUNK_SIZE + 0);
+        assert_eq!(entity.index, CHUNK_SIZE);
     }
 }

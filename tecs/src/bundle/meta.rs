@@ -50,22 +50,18 @@ impl BundleMeta {
 
     pub fn filter<F: WorldFilter>(&mut self) -> bool {
         let filter_id = TypeId::of::<F>();
-        if !self.filter_cache.contains_key(&filter_id) {
-            self.filter_cache
-                .insert(filter_id, F::filter(self.components_ids));
+        if let std::collections::hash_map::Entry::Vacant(e) = self.filter_cache.entry(filter_id) {
+            e.insert(F::filter(self.components_ids));
         }
         self.filter_cache.get(&filter_id).copied().unwrap()
     }
 
     pub fn fetch<F: WorldFetch>(&mut self) -> Option<&MappingTable> {
         let fetch_id = F::Bundle::type_id_();
-        if !self.fetch_cache.contains_key(&fetch_id) {
+        if let std::collections::hash_map::Entry::Vacant(e) = self.fetch_cache.entry(fetch_id) {
             let mapping_table = F::contain(&mut self.components_ids.to_vec());
-            match mapping_table {
-                Some(mapping_table) => {
-                    self.fetch_cache.insert(fetch_id, mapping_table);
-                }
-                None => {}
+            if let Some(mapping_table) = mapping_table {
+                e.insert(mapping_table);
             }
         }
         self.fetch_cache.get(&fetch_id)

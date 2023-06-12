@@ -35,12 +35,12 @@ impl<'a, T: 'static> Res<'a, T> {
 
     /// 获取资源的不可变引用
     pub fn get(&self) -> Option<&T> {
-        self.handle.as_ref().and_then(|box_| Some(&**box_))
+        self.handle.as_ref().map(|box_| &**box_)
     }
 
     /// 获取资源的可变引用
     pub fn get_mut(&mut self) -> Option<&mut T> {
-        self.handle.as_mut().and_then(|box_| Some(&mut **box_))
+        self.handle.as_mut().map(|box_| &mut **box_)
     }
 
     /// 取得资源
@@ -84,9 +84,9 @@ pub struct Resources<'a> {
 impl<'a> ResManager for Resources<'a> {
     fn get_res<T: 'static>(&mut self) -> Res<'_, T> {
         let t_id = TypeId::of::<T>();
-        if !self.resources.contains_key(&t_id) {
-            self.resources.insert(t_id, UnsafeCell::new(None));
-        }
+        self.resources
+            .entry(t_id)
+            .or_insert_with(|| UnsafeCell::new(None));
         let res = self.resources.get_mut(&t_id).unwrap().get_mut();
         Res::new(res)
     }
@@ -99,9 +99,9 @@ impl<'a> ResManager for Resources<'a> {
 
     fn new_res<T: 'static>(&mut self) {
         let t_id = TypeId::of::<T>();
-        if !self.resources.contains_key(&t_id) {
-            self.resources.insert(t_id, UnsafeCell::new(None));
-        }
+        self.resources
+            .entry(t_id)
+            .or_insert_with(|| UnsafeCell::new(None));
     }
 }
 
@@ -117,7 +117,7 @@ impl FnSystemParm for Resources<'_> {
     unsafe fn init(state: &mut crate::system::state::SystemState) {
         // 理论上因为UnsafeCell会自己在运行时painc
         // 但是还是提前制止吧?
-        if state.resources || state.res.len() != 0 {
+        if state.resources || !state.res.is_empty() {
             panic!("Resources不可和其他Resources或者任何Res共存")
         }
         state.resources = true;

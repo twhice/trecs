@@ -100,11 +100,11 @@ mod __impl {
             // 所以用上了哈希表
             static mut COMPONENT_IDS: OnceCell<HashMap<TypeId, [TypeId; 1]>> = OnceCell::new();
             unsafe {
-                COMPONENT_IDS.get_or_init(|| HashMap::new());
+                COMPONENT_IDS.get_or_init(HashMap::new);
                 let hashset = COMPONENT_IDS.get_mut().unwrap();
-                if !hashset.contains_key(&Self::type_id_()) {
-                    hashset.insert(Self::type_id_(), [Self::type_id_()]);
-                }
+                hashset
+                    .entry(Self::type_id_())
+                    .or_insert_with(|| [Self::type_id_()]);
                 hashset.get(&Self::type_id_()).unwrap()
             }
         }

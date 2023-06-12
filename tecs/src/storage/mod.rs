@@ -82,9 +82,9 @@ impl Chunk {
             Some(slot) => {
                 self.bundles[slot] = b.destory();
                 self.alive[slot] += ALIVE_TAG + 1;
-                return Ok(self.gen_entity(slot));
+                Ok(self.gen_entity(slot))
             }
-            None => return Err(b),
+            None => Err(b),
         }
     }
 
@@ -149,7 +149,7 @@ mod tests {
         assert_eq!(chunk.insert(123456), Err(123456));
 
         // 拔出来一个
-        assert_eq!(chunk.remove(Entity::new(ALIVE_TAG, 1)), true);
+        assert!(chunk.remove(Entity::new(ALIVE_TAG, 1)));
 
         // 换成更大的,再插进去
         assert_eq!(chunk.insert(114514), Ok(Entity::new(ALIVE_TAG + 1, 1)))

@@ -80,24 +80,32 @@ impl World {
     where
         F: FnMut() -> bool,
     {
-        // stable没下面的"cast_ref_to_mut" 所以需要下面的allow
-        #[allow(unknown_lints)]
-        // nightly版本会deny 所以这需要allow
-        #[allow(clippy::cast_ref_to_mut)]
-        let this = unsafe { &mut *(self as *const _ as *mut World) };
-        for startup in &mut self.startup_systems {
-            unsafe {
-                startup.run_once(this);
-            }
-        }
-
+        self.start_up();
         loop {
             if until() {
                 return;
             }
-            for sys in &mut self.systems {
-                unsafe { sys.run_once(this) }
-            }
+            self.run_once();
+        }
+    }
+
+    pub fn start_up(&mut self) -> &mut Self {
+        while let Some(mut stsys) = self.startup_systems.pop() {
+            unsafe { stsys.run_once(self) };
+        }
+        self
+    }
+
+    pub fn run_once(&mut self) {
+        let mut this = unsafe {
+            // stable没下面的"cast_ref_to_mut" 所以需要下面的allow
+            #[allow(unknown_lints)]
+            // nightly版本会deny 所以这需要allow
+            #[allow(clippy::cast_ref_to_mut)]
+            &mut *(self as *const _ as *mut World)
+        };
+        for sys in &mut self.systems {
+            unsafe { sys.run_once(&mut this) };
         }
     }
 }

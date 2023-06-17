@@ -79,6 +79,10 @@ pub fn fnsystem(attr: TokenStream, fndef: TokenStream) -> TokenStream {
         #vis fn #fn_name (world : &::tecs::World)
     };
 
+    let call = quote! {
+        #fn_name(#(<#args_tys as ::tecs::system::fnsys::FnSystemParm>::build(&world)),*)
+    };
+
     let result = quote! {
         #new_fn_sig {
             #fndef
@@ -88,8 +92,8 @@ pub fn fnsystem(attr: TokenStream, fndef: TokenStream) -> TokenStream {
                     let mut state = ::tecs::system::state::SystemState::new();
                     #(<#args_tys2 as ::tecs::system::fnsys::FnSystemParm>::init(&mut state);)*
                 });
-
-                #fn_name(#(<#args_tys as ::tecs::system::fnsys::FnSystemParm>::build(&world)),*);
+                #call
+                ;
             }
         }
     };

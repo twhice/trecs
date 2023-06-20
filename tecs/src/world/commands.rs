@@ -1,6 +1,7 @@
 use crate::{traits::command::Command, World};
 
-use super::FnSystemParm;
+#[cfg(feature = "system")]
+use crate::system::fnsys::FnSystemParm;
 
 pub struct Commands<'a> {
     inner: &'a mut World,
@@ -37,6 +38,7 @@ impl Command for Commands<'_> {
     }
 }
 
+#[cfg(feature = "system")]
 impl FnSystemParm for Commands<'_> {
     unsafe fn build(world: &World) -> Self {
         #[allow(mutable_transmutes)]

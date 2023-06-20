@@ -3,9 +3,9 @@ use std::time::{Duration, Instant};
 
 use proc::Component;
 use tecs::proc::fnsystem;
-use tecs::system::fnsys::Query;
+use tecs::world::Query;
 use tecs::World;
-use tecs::{system::fnsys::Commands, traits::command::Command};
+use tecs::{traits::command::Command, world::Commands};
 
 #[derive(Component)]
 pub struct Str {

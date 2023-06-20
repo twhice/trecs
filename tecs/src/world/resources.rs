@@ -4,9 +4,7 @@ use std::{
     collections::HashMap,
 };
 
-use crate::{traits::resources::ResManager, world::World};
-
-use super::FnSystemParm;
+use crate::traits::resources::ResManager;
 
 pub struct Res<'a, T: 'static> {
     handle: &'a mut Option<Box<T>>,
@@ -62,6 +60,10 @@ impl<'a, T: 'static> Res<'a, T> {
     }
 }
 
+#[cfg(feature = "system")]
+use crate::{system::fnsys::FnSystemParm, world::World};
+
+#[cfg(feature = "system")]
 impl<'a, T: 'static> FnSystemParm for Res<'a, T> {
     unsafe fn build(world: &World) -> Self {
         #[allow(mutable_transmutes)]
@@ -105,6 +107,7 @@ impl<'a> ResManager for Resources<'a> {
     }
 }
 
+#[cfg(feature = "system")]
 impl FnSystemParm for Resources<'_> {
     unsafe fn build(world: &World) -> Self {
         #[allow(mutable_transmutes)]

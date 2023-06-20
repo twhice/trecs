@@ -34,6 +34,7 @@ pub fn all_tuple(input: TokenStream) -> TokenStream {
 /// 将一个函数转化为系统
 ///
 /// 函数需要满足一一些要求
+#[cfg(feature = "system")]
 #[proc_macro_attribute]
 pub fn fnsystem(attr: TokenStream, fndef: TokenStream) -> TokenStream {
     assert!(attr.is_empty(), "#[fnsystem]不应带有任何属性");
@@ -43,24 +44,25 @@ pub fn fnsystem(attr: TokenStream, fndef: TokenStream) -> TokenStream {
     // 提取参数列表&&进行一些检查
     let args = {
         let sig = &fndef.sig;
-        if sig.asyncness.is_some() {
-            panic!("#[fnsystem]不可以在异步的函数上使用")
-        }
-        if sig.generics.lt_token.is_some() {
-            panic!("#[fnsystem]不可以在泛型函数上使用")
-        }
-        if sig.constness.is_some() {
-            panic!("#[fnsystem]不可以在常量函数上使用")
-        }
+
+        assert!(
+            sig.asyncness.is_none(),
+            "#[fnsystem]不可以在异步的函数上使用"
+        );
+        assert!(
+            sig.generics.lt_token.is_none(),
+            "#[fnsystem]不可以在泛型函数上使用"
+        );
+        assert!(sig.constness.is_none(), "#[fnsystem]不可以在常量函数上使用");
 
         let args = sig.inputs.iter().collect::<Vec<_>>();
 
-        if args
-            .iter()
-            .any(|arg| matches!(*arg, syn::FnArg::Receiver(_)))
-        {
-            panic!("#[fnsystem]不可以在Receiver的函数上使用")
-        }
+        assert!(
+            !args
+                .iter()
+                .any(|arg| matches!(*arg, syn::FnArg::Receiver(_))),
+            "#[fnsystem]不可以在Receiver的函数上使用"
+        );
 
         args.into_iter()
             .cloned()

@@ -1,16 +1,5 @@
-mod commands;
-
-mod query;
-mod resources;
-pub use self::{
-    commands::Commands,
-    query::Query,
-    resources::{Res, Resources},
-};
-
-use crate::world::World;
-
 use super::{state::SystemState, System};
+use crate::world::World;
 
 /// 函数系统 : 由实现了[FnSystemParm]特征的类型作为参数,并且加上
 /// [proc::system]属性的的函数

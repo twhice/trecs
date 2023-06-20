@@ -9,6 +9,7 @@ pub mod iter;
 /// 存储[World]中数据的容器
 pub mod storage;
 
+#[cfg(feature = "system")]
 pub mod system;
 ///一些用于操作的trait,以及封装其中的[Command]
 ///
@@ -17,10 +18,11 @@ pub mod system;
 /// [Command]:crate
 /// [World]:crate
 pub mod traits;
+pub mod world;
 /// 最终的容器
-mod world;
 pub use world::World;
 
 pub mod proc {
+    #[cfg(feature = "system")]
     pub use proc::fnsystem;
 }

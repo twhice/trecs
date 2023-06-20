@@ -1,4 +1,4 @@
-use crate::system::fnsys::Res;
+use crate::world::Res;
 #[allow(unused_imports)]
 use crate::world::World;
 

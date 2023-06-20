@@ -4,19 +4,33 @@ use std::{
     collections::HashMap,
 };
 
+mod commands;
+mod query;
+mod resources;
+
+pub use self::{
+    commands::Commands,
+    query::Query,
+    resources::{Res, Resources},
+};
+
 use crate::{
     bundle::{Bundle, BundleMeta},
     storage::{Chunk, Entity, CHUNK_SIZE},
-    system::{fnsys::Res, System},
     traits::{command::Command, resources::ResManager},
 };
 
 type AnRes = UnsafeCell<Option<Box<dyn Any>>>;
 
+#[cfg(feature = "system")]
+use crate::system::System;
+
 pub struct World {
     pub(crate) chunks: Vec<Chunk>,
     pub(crate) metas: HashMap<TypeId, BundleMeta>,
+    #[cfg(feature = "system")]
     pub(crate) startup_systems: Vec<Box<dyn System>>,
+    #[cfg(feature = "system")]
     pub(crate) systems: Vec<Box<dyn System>>,
     pub(crate) resources: HashMap<TypeId, AnRes>,
 }
@@ -26,7 +40,9 @@ impl World {
         Self {
             chunks: vec![],
             metas: Default::default(),
+            #[cfg(feature = "system")]
             startup_systems: vec![],
+            #[cfg(feature = "system")]
             systems: vec![],
             resources: Default::default(),
         }
@@ -44,6 +60,10 @@ impl World {
         self.chunks.push(Chunk::new(self.chunks.len()));
         self.chunks.last_mut().unwrap()
     }
+}
+
+#[cfg(feature = "system")]
+impl World {
     #[allow(unused)]
     pub(crate) fn exec<S: System>(&self, mut s: S) {
         unsafe {
@@ -96,8 +116,9 @@ impl World {
         self
     }
 
+    // 执行一次所有system
     pub fn run_once(&mut self) {
-        let mut this = unsafe {
+        let this = unsafe {
             // stable没下面的"cast_ref_to_mut" 所以需要下面的allow
             #[allow(unknown_lints)]
             // nightly版本会deny 所以这需要allow
@@ -105,7 +126,7 @@ impl World {
             &mut *(self as *const _ as *mut World)
         };
         for sys in &mut self.systems {
-            unsafe { sys.run_once(&mut this) };
+            unsafe { sys.run_once(this) };
         }
     }
 }

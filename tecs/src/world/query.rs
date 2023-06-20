@@ -1,6 +1,7 @@
 use std::marker::PhantomData;
 
-use super::FnSystemParm;
+#[cfg(feature = "system")]
+use crate::system::fnsys::FnSystemParm;
 use crate::{
     iter::{EIter, Iter},
     traits::{fetch::WorldFetch, filter::WorldFilter},
@@ -8,12 +9,14 @@ use crate::{
 };
 
 #[allow(unused_imports)]
-use crate::{bundle::Components, system::fnsys::FnSystem};
+use crate::bundle::Components;
 /// [FnSystem]的参数之一
 ///
 /// 用来操作从world中选定的部分[Components]
 ///
 /// 有可能会出现别名冲突导致[FnSystem]第一次运行时painc
+///
+/// [FnSystem]: system::fnsys::FnSystem
 #[derive(Clone)]
 pub struct Query<'a, F: WorldFetch, Q: WorldFilter = ()> {
     world: &'a World,
@@ -49,6 +52,7 @@ impl<'a, F: WorldFetch + 'a, Q: WorldFilter> IntoIterator for Query<'a, F, Q> {
     }
 }
 
+#[cfg(feature = "system")]
 impl<F: WorldFetch, Q: WorldFilter> FnSystemParm for Query<'_, F, Q> {
     unsafe fn build(world: &World) -> Self {
         let world: &'static World = std::mem::transmute(world);

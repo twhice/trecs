@@ -2,8 +2,8 @@ use std::time::{Duration, Instant};
 
 use tecs::bundle::{Bundle, Component};
 use tecs::proc::fnsystem;
-use tecs::system::fnsys::Query;
 use tecs::traits::command::Command;
+use tecs::world::Query;
 use tecs::World;
 
 #[derive(Bundle)]

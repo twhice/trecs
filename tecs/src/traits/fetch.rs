@@ -2,6 +2,7 @@ use std::any::TypeId;
 
 #[allow(unused_imports)]
 use crate::bundle::{Bundle, Component, Components};
+#[cfg(feature = "system")]
 use crate::system::state::AliasMap;
 
 /// # 介绍
@@ -83,6 +84,7 @@ pub trait WorldFetch {
     /// 计算[WorldFetch]可能导致的别名冲突
     ///
     /// 如果存在别名冲突,带有发生冲突的[WorldFetch]在第一次执行时会发生painc
+    #[cfg(feature = "system")]
     fn alias_conflict(alias_map: &mut AliasMap);
 }
 
@@ -107,6 +109,7 @@ impl<T: Component> WorldFetch for &T {
         Some(MappingTable::Mapping(mapping))
     }
 
+    #[cfg(feature = "system")]
     fn alias_conflict(alias_map: &mut AliasMap) {
         alias_map.insert::<Self, T>(crate::system::state::Alias::Imut)
     }
@@ -135,6 +138,7 @@ impl<T: Component> WorldFetch for &'_ mut T {
         Some(MappingTable::Mapping(mapping))
     }
 
+    #[cfg(feature = "system")]
     fn alias_conflict(alias_map: &mut AliasMap) {
         alias_map.insert::<Self, T>(crate::system::state::Alias::Mut)
     }
@@ -142,7 +146,11 @@ impl<T: Component> WorldFetch for &'_ mut T {
 
 #[rustfmt::skip]
 mod __impl {
-    use super::{Components, MappingTable, TypeId, WorldFetch,AliasMap};
+    
+    use super::{Components, MappingTable, TypeId, WorldFetch,};
+    #[cfg(feature = "system")]
+    use super::AliasMap;
+
     macro_rules! impl_fetch {
         ($($t:ident),*) => {
             impl<$($t:WorldFetch),*> WorldFetch for ($($t,)*){
@@ -170,6 +178,7 @@ mod __impl {
                     Some(MappingTable::Node(mappings))
                 }
 
+                #[cfg(feature = "system")]
                 fn alias_conflict(alias_map: &mut AliasMap) {
                     $($t::alias_conflict(alias_map);)*
                 }

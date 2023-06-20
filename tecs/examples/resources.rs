@@ -1,8 +1,8 @@
 use std::time::{Duration, Instant};
 
 use tecs::proc::fnsystem;
-use tecs::system::fnsys::{Res, Resources};
 use tecs::traits::resources::ResManager;
+use tecs::world::{Res, Resources};
 use tecs::World;
 
 /// 初始化资源String 为 "Hello world from Res"

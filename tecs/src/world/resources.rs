@@ -90,8 +90,11 @@ impl Resources<'_> {
         self.resources_dropers
             .entry(t_id)
             .or_insert(Some(Box::new(|res: &mut super::AnRes| {
-                let Some(item) = res.get_mut().take()else{return;};
-                drop(item.downcast::<T>().unwrap());
+                let opt = res.get_mut();
+                // 这里不知道为什么不能用[Box::downcast]反射
+                // 就只能来点传统手艺，最后是可以成功的
+                let item = unsafe { (&mut *(opt as *const _ as *mut Option<Box<T>>)).take() };
+                drop(item)
             })));
     }
 }

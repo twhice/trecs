@@ -125,6 +125,26 @@ impl Chunk {
     pub fn gen_entity(&self, index: usize) -> Entity {
         Entity::new(self.alive[index], self.index * CHUNK_SIZE + index)
     }
+
+    /// 仅仅做引用的迭代器
+    pub fn iter(&self) -> ChunkIter<'_> {
+        ChunkIter::new(self)
+    }
+
+    /// 移出所有有效的[Components]
+    ///
+    /// 清理用
+    pub fn clear(&mut self, clearer: &dyn Fn(Components)) {
+        self.bundles
+            .iter_mut()
+            .enumerate()
+            .filter(|(id, ..)| self.alive[*id] > ALIVE_TAG)
+            .for_each(|(.., cs)| {
+                let mut target = Vec::with_capacity(cs.len());
+                target.append(cs);
+                clearer(target);
+            });
+    }
 }
 
 #[cfg(test)]

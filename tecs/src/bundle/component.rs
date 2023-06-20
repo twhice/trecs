@@ -70,6 +70,13 @@ mod __impl {
                     }
                 }
 
+                fn drop(cs : Components){
+                    // 迭代 && 颠倒
+                    let mut iter = cs.into_iter().rev();
+                    // 依次赋值
+                    $(let $t = iter.next().unwrap().downcast::<$t>();)*
+                }
+
                 fn type_name() -> &'static str {
                     type_name::<Self>()
                 }
@@ -107,6 +114,10 @@ mod __impl {
                     .or_insert_with(|| [Self::type_id_()]);
                 hashset.get(&Self::type_id_()).unwrap()
             }
+        }
+
+        fn drop(mut cs: Components) {
+            drop(cs.pop().unwrap().downcast::<Self>());
         }
 
         fn type_name() -> &'static str {

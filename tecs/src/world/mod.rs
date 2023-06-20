@@ -25,6 +25,8 @@ type AnRes = UnsafeCell<Option<Box<dyn Any>>>;
 #[cfg(feature = "system")]
 use crate::system::System;
 
+type Droper = Option<Box<dyn FnOnce(&mut AnRes)>>;
+
 pub struct World {
     pub(crate) chunks: Vec<Chunk>,
     pub(crate) metas: HashMap<TypeId, BundleMeta>,
@@ -33,6 +35,11 @@ pub struct World {
     #[cfg(feature = "system")]
     pub(crate) systems: Vec<Box<dyn System>>,
     pub(crate) resources: HashMap<TypeId, AnRes>,
+    /// 因为运行时反射 资源在最后都以[Box<dyn Any>]的状态[Drop]
+    /// 而不是调用自身的[Drop::drop]和方法
+    ///
+    /// 所以在创建每一个资源时都记录下一个函数用来Drop
+    pub(crate) resources_dropers: HashMap<TypeId, Droper>,
 }
 
 impl World {
@@ -45,6 +52,7 @@ impl World {
             #[cfg(feature = "system")]
             systems: vec![],
             resources: Default::default(),
+            resources_dropers: Default::default(),
         }
     }
 
@@ -232,14 +240,35 @@ impl Command for World {
     }
 }
 
+impl Drop for World {
+    fn drop(&mut self) {
+        // Drop资源
+        for (t_id, droper) in &mut self.resources_dropers {
+            if let (Some(droper), Some(res)) = (droper.take(), self.resources.get_mut(t_id)) {
+                (droper)(res);
+            }
+        }
+
+        // Drop组件
+        for (.., meta) in &self.metas {
+            meta.chunks
+                .iter()
+                .copied()
+                .filter_map(|cid| {
+                    self.chunks.get_mut(cid)?.clear(&meta.droper);
+                    Some(())
+                })
+                .count();
+        }
+    }
+}
+
 impl ResManager for World {
     fn get_res<T: 'static>(&mut self) -> Res<'_, T> {
-        let t_id = TypeId::of::<T>();
-        self.resources
-            .entry(t_id)
-            .or_insert_with(|| UnsafeCell::new(None));
-        let res = self.resources.get_mut(&t_id).unwrap().get_mut();
-        Res::new(res)
+        if !self.resources.contains_key(&TypeId::of::<T>()) {
+            self.new_res::<T>();
+        }
+        self.try_get_res::<T>().unwrap()
     }
 
     fn try_get_res<T: 'static>(&mut self) -> Option<Res<'_, T>> {
@@ -249,10 +278,11 @@ impl ResManager for World {
     }
 
     fn new_res<T: 'static>(&mut self) {
-        let t_id = TypeId::of::<T>();
-        self.resources
-            .entry(t_id)
-            .or_insert_with(|| UnsafeCell::new(None));
+        Resources {
+            resources: &mut self.resources,
+            resources_dropers: &mut self.resources_dropers,
+        }
+        .new_res::<T>();
     }
 }
 

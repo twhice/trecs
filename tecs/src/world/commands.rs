@@ -7,12 +7,6 @@ pub struct Commands<'a> {
     inner: &'a mut World,
 }
 
-impl Commands<'_> {
-    pub(crate) fn new(world: &mut World) -> Commands<'_> {
-        Commands { inner: world }
-    }
-}
-
 impl Command for Commands<'_> {
     fn register<B: crate::bundle::Bundle>(&mut self) {
         self.inner.register::<B>()
@@ -43,7 +37,7 @@ impl FnSystemParm for Commands<'_> {
     unsafe fn build(world: &World) -> Self {
         #[allow(mutable_transmutes)]
         let world: &mut World = std::mem::transmute(world);
-        Self::new(world)
+        Commands { inner: world }
     }
 
     unsafe fn init(_state: &mut crate::system::state::SystemState) {

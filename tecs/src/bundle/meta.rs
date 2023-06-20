@@ -9,14 +9,13 @@ use crate::traits::{
     filter::WorldFilter,
 };
 
-use super::Bundle;
+use super::{Bundle, Components};
 
 /// 一个[Bundle]的信息
 ///
 /// 一个[Bundle]由若干个[Component]组成
 ///
 /// 比如(123,&&str) 就是一个Bundle
-#[derive(Clone)]
 pub struct BundleMeta {
     /// [Bundle]的typeid
     pub bundle_id: TypeId,
@@ -33,11 +32,17 @@ pub struct BundleMeta {
     /// [World]中所有存放此类[Bundle]的[Chunk]的下标
     pub chunks: Vec<usize>,
 
+    /// 类似[World]的resources_dropers
+    ///
+    /// 是一个用来还原并drop[Bundle]的函数
+    pub droper: Box<dyn Fn(Components)>,
+
     bundle_info: (&'static str, &'static str),
 }
 
 impl BundleMeta {
     pub fn new<B: Bundle>() -> Self {
+        let droper = |cs: Components| B::drop(cs);
         Self {
             bundle_id: B::type_id_(),
             components_ids: B::components_ids(),
@@ -45,6 +50,7 @@ impl BundleMeta {
             fetch_cache: Default::default(),
             chunks: vec![],
             bundle_info: (type_name::<B>(), B::type_name()),
+            droper: Box::new(droper),
         }
     }
 

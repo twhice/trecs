@@ -1,6 +1,5 @@
 mod ebundle;
 
-
 pub use ebundle::{EBundle, EIter};
 use std::marker::PhantomData;
 
@@ -85,8 +84,9 @@ impl<'a, F: WorldFetch> Iterator for Iter<'a, F> {
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.iter.is_none() {
-            let (mapping, chunk) = unsafe { std::mem::transmute(self.select.pop()?) };
-            let iter = ChunkIter::new(chunk);
+            // 这里的transmute是为了无界生命周期
+            let (mapping, chunk ) = unsafe { std::mem::transmute::<_,(&MappingTable,&Chunk)>(self.select.pop()?) };
+            let iter = chunk.iter();
             self.iter = Some((mapping, iter));
         }
         let (mapping_table, iter) = self.iter.as_mut()?;
@@ -100,4 +100,3 @@ impl<'a, F: WorldFetch> Iterator for Iter<'a, F> {
         Some(item)
     }
 }
-

@@ -11,7 +11,7 @@ use syn::{
 pub fn all_tuple(input: TokenStream) -> TokenStream {
     let input = input.to_string();
     let parms = input.split(',').collect::<Vec<_>>();
-    let macro_name = format_ident!("{}", parms[0]);
+    let macro_name = format_ident!("{}", parms[0].trim());
     let num = parms[1].trim().parse::<usize>().unwrap();
     let mut result = quote!();
 
@@ -110,19 +110,19 @@ pub fn bundle(input: TokenStream) -> TokenStream {
     match input.data {
         syn::Data::Struct(struct_) => {
             // 1 destory
-            let tys = struct_.fields.iter().cloned().map(|field| {
-                let id = field.ident;
+            let idents = struct_.fields.iter().cloned().map(|field| {
+                let ident = field.ident;
                 quote! {
-                    #id
+                    #ident
                 }
             });
-            let tys2 = tys.clone();
+            let idents2 = idents.clone();
 
             let destory = quote! {
                 #[allow(non_snake_case)]
                 fn destory(self) -> ::tecs::bundle::Components{
-                    let #struct_name {#(#tys,)*} = self;
-                    vec![#(Box::new(#tys2))*,]
+                    let #struct_name {#(#idents,)*} = self;
+                    vec![#(Box::new(#idents2))*,]
                 }
             };
 
@@ -158,11 +158,26 @@ pub fn bundle(input: TokenStream) -> TokenStream {
                 }
             };
 
+            // droper
+            let tys = struct_.fields.iter().cloned().map(|field| field.ty);
+
+            let generator = struct_.fields.iter().scan(0, |state, _| {
+                *state += 1;
+                Some(format_ident!("T{}", state.to_string()))
+            });
+            let drop = quote! {
+                fn drop(cs : ::tecs::bundle::Components) {
+                    let mut iter = cs.into_iter().rev();
+                    #(let #generator = iter.next().unwrap().downcast::<#tys>();)*
+                }
+            };
+
             let result = quote! {
                 // #input
                 impl ::tecs::bundle::Bundle for #struct_name{
                     #destory
                     #components_ids
+                    #drop
                     #type_name
                     #type_id_
                 }

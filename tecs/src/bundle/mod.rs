@@ -18,6 +18,13 @@ pub trait Bundle: Any {
     /// [Bundle]中所有[Component]的[TypeId]
     fn components_ids() -> &'static [TypeId];
 
+    /// 还原并[Drop]
+    ///
+    /// 主要是传递给[BundleMeta]，作为[World][Drop]时的调用
+    ///
+    /// 否则类型不会正常地[Drop::drop]
+    fn drop(cs: Components);
+
     /// [Bundle]的类型名,是为了方便加上的
     fn type_name() -> &'static str;
 

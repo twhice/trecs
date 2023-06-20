@@ -80,17 +80,28 @@ impl<'a, T: 'static> FnSystemParm for Res<'a, T> {
 }
 
 pub struct Resources<'a> {
-    resources: &'a mut HashMap<TypeId, UnsafeCell<Option<Box<dyn Any>>>>,
+    pub(crate) resources: &'a mut HashMap<TypeId, UnsafeCell<Option<Box<dyn Any>>>>,
+    pub(crate) resources_dropers: &'a mut HashMap<TypeId, super::Droper>,
+}
+
+impl Resources<'_> {
+    fn drop_tag<T: 'static>(&mut self) {
+        let t_id = TypeId::of::<T>();
+        self.resources_dropers
+            .entry(t_id)
+            .or_insert(Some(Box::new(|res: &mut super::AnRes| {
+                let Some(item) = res.get_mut().take()else{return;};
+                drop(item.downcast::<T>().unwrap());
+            })));
+    }
 }
 
 impl<'a> ResManager for Resources<'a> {
     fn get_res<T: 'static>(&mut self) -> Res<'_, T> {
-        let t_id = TypeId::of::<T>();
-        self.resources
-            .entry(t_id)
-            .or_insert_with(|| UnsafeCell::new(None));
-        let res = self.resources.get_mut(&t_id).unwrap().get_mut();
-        Res::new(res)
+        if !self.resources.contains_key(&TypeId::of::<T>()) {
+            self.new_res::<T>();
+        }
+        self.try_get_res::<T>().unwrap()
     }
 
     fn try_get_res<T: 'static>(&mut self) -> Option<Res<'_, T>> {
@@ -101,6 +112,7 @@ impl<'a> ResManager for Resources<'a> {
 
     fn new_res<T: 'static>(&mut self) {
         let t_id = TypeId::of::<T>();
+        self.drop_tag::<T>();
         self.resources
             .entry(t_id)
             .or_insert_with(|| UnsafeCell::new(None));
@@ -114,6 +126,7 @@ impl FnSystemParm for Resources<'_> {
         let world: &mut World = std::mem::transmute(world);
         Self {
             resources: &mut world.resources,
+            resources_dropers: &mut world.resources_dropers,
         }
     }
 

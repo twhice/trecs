@@ -21,8 +21,3 @@ pub mod traits;
 pub mod world;
 /// 最终的容器
 pub use world::World;
-
-pub mod proc {
-    #[cfg(feature = "system")]
-    pub use proc::fnsystem;
-}

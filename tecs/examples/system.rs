@@ -1,7 +1,7 @@
 use std::time::{Duration, Instant};
 
 use tecs::bundle::{Bundle, Component};
-use tecs::proc::fnsystem;
+
 use tecs::traits::command::Command;
 use tecs::world::Query;
 use tecs::World;
@@ -20,7 +20,6 @@ struct Str2 {
 
 fn main() {
     // 直接输出
-    #[fnsystem]
     fn hello_world() {
         println!("Hello World from system `hello_world`")
     }
@@ -28,7 +27,6 @@ fn main() {
     // 从世界中选取字符串,然后输出
     // Query<'a,F,Q> 这里F是&'static &str代表获取全部&str的不可变引用
     // 用&'static &str是因为 &str已经有了一个匿名生命周期(大概是吧?)
-    #[fnsystem]
     fn hello_world_from_cs(query: Query<&'static &str>) {
         for str in query {
             println!("{str}")
@@ -36,7 +34,6 @@ fn main() {
     }
 
     // 类似于锁帧
-    #[fnsystem]
     fn twice_pre_s() {
         let instant = Instant::now();
         while instant.elapsed() < Duration::from_secs_f64(1.0 / 2.0) {}

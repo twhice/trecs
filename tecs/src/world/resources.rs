@@ -2,18 +2,29 @@ use std::{
     any::{Any, TypeId},
     cell::UnsafeCell,
     collections::HashMap,
+    marker::PhantomData,
 };
 
 use crate::traits::resources::ResManager;
 
 pub struct Res<'a, T: 'static> {
-    handle: &'a mut Option<Box<T>>,
+    handle: &'a mut Option<Box<dyn Any>>,
+    _m: PhantomData<T>,
 }
 
 impl<'a, T: 'static> Res<'a, T> {
     pub(crate) fn new(res: &mut Option<Box<dyn Any>>) -> Res<'_, T> {
+        // 在transmute之前 res可能是None
+        // 意味着内部的Box<dyn Any>实际上是没有虚表的
+        // let handle : &mut Option<Box<T>> = unsafe { std::mem::transmute(res) };
+        // 在downcast时就会造成ub
+        // 因此变更设计,使用downcast在每个函数转换，而不是创建时直接转换
+
         let handle = unsafe { std::mem::transmute(res) };
-        Res { handle }
+        Res {
+            handle,
+            _m: PhantomData,
+        }
     }
 
     /// 获取资源的不可变引用,或者初始化资源
@@ -26,19 +37,19 @@ impl<'a, T: 'static> Res<'a, T> {
         F: FnOnce() -> T,
     {
         if self.handle.is_none() {
-            *self.handle = Some((init)().into());
+            *self.handle = Some(Box::new(init()));
         }
         self.get().unwrap()
     }
 
     /// 获取资源的不可变引用
     pub fn get(&self) -> Option<&T> {
-        self.handle.as_ref().map(|box_| &**box_)
+        self.handle.as_ref().and_then(|box_| box_.downcast_ref())
     }
 
     /// 获取资源的可变引用
     pub fn get_mut(&mut self) -> Option<&mut T> {
-        self.handle.as_mut().map(|box_| &mut **box_)
+        self.handle.as_mut().and_then(|box_| box_.downcast_mut())
     }
 
     /// 取得资源
@@ -47,7 +58,7 @@ impl<'a, T: 'static> Res<'a, T> {
     ///
     /// + 如果原来没有资源，返回[None]
     pub fn take(&mut self) -> Option<Box<T>> {
-        self.handle.take()
+        self.handle.take()?.downcast().ok()
     }
 
     /// 删除资源
@@ -61,17 +72,17 @@ impl<'a, T: 'static> Res<'a, T> {
 }
 
 #[cfg(feature = "system")]
-use crate::{system::fnsys::FnSystemParm, world::World};
+use crate::{system::SystemParm, world::World};
 
 #[cfg(feature = "system")]
-impl<'a, T: 'static> FnSystemParm for Res<'a, T> {
+impl<'a, T: 'static> SystemParm for Res<'a, T> {
     unsafe fn build(world: &World) -> Self {
         #[allow(mutable_transmutes)]
         let world: &mut World = std::mem::transmute(world);
         std::mem::transmute(world.get_res::<T>())
     }
 
-    unsafe fn init(state: &mut crate::system::state::SystemState) {
+    fn init(state: &mut crate::system::state::SystemState) {
         if state.resources || state.res.contains(&TypeId::of::<T>()) {
             panic!("Res不可和Resources或者重复的Res共存")
         }
@@ -91,10 +102,7 @@ impl Resources<'_> {
             .entry(t_id)
             .or_insert(Some(Box::new(|res: &mut super::AnRes| {
                 let opt = res.get_mut();
-                // 这里不知道为什么不能用[Box::downcast]反射
-                // 就只能来点传统手艺，最后是可以成功的
-                let item = unsafe { (&mut *(opt as *const _ as *mut Option<Box<T>>)).take() };
-                drop(item)
+                opt.take().and_then(|b| b.downcast::<T>().ok());
             })));
     }
 }
@@ -123,7 +131,7 @@ impl<'a> ResManager for Resources<'a> {
 }
 
 #[cfg(feature = "system")]
-impl FnSystemParm for Resources<'_> {
+impl SystemParm for Resources<'_> {
     unsafe fn build(world: &World) -> Self {
         #[allow(mutable_transmutes)]
         let world: &mut World = std::mem::transmute(world);
@@ -133,7 +141,7 @@ impl FnSystemParm for Resources<'_> {
         }
     }
 
-    unsafe fn init(state: &mut crate::system::state::SystemState) {
+    fn init(state: &mut crate::system::state::SystemState) {
         // 理论上因为UnsafeCell会自己在运行时painc
         // 但是还是提前制止吧?
         if state.resources || !state.res.is_empty() {

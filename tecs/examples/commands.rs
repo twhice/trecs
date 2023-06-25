@@ -2,7 +2,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use proc::Component;
-use tecs::proc::fnsystem;
+
 use tecs::world::Query;
 use tecs::World;
 use tecs::{traits::command::Command, world::Commands};
@@ -15,17 +15,18 @@ pub struct Str {
 
 // unsafe会被忽视,最终的函数是safe的
 // 但是代码块仍然是unsafe上下文
-#[fnsystem]
-unsafe fn spawn_hello_world(mut commands: Commands) {
+
+fn spawn_hello_world(mut commands: Commands) {
     static mut COUNTER: usize = 0;
 
-    commands.spawn(Str {
-        inner: String::from("hello world ") + &COUNTER.to_string(),
-    });
-    COUNTER += 1;
+    unsafe {
+        commands.spawn(Str {
+            inner: String::from("hello world ") + &COUNTER.to_string(),
+        });
+        COUNTER += 1;
+    }
 }
 
-#[fnsystem]
 fn print_hello_world(q: Query<&Str>, mut commands: Commands) {
     for eb in q.into_eiter() {
         // 读取,然后删除
@@ -34,7 +35,6 @@ fn print_hello_world(q: Query<&Str>, mut commands: Commands) {
     }
 }
 
-#[fnsystem]
 fn twice_pre_s() {
     thread::sleep(Duration::from_secs_f64(1.0 / 2.0))
 }

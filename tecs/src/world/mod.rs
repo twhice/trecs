@@ -17,23 +17,27 @@ pub use self::{
 use crate::{
     bundle::{Bundle, BundleMeta},
     storage::{Chunk, Entity, CHUNK_SIZE},
+    system::InnerSystem,
     traits::{command::Command, resources::ResManager},
 };
 
+/// 这里的[Any]是没有虚表的！！！
+/// 不可以进行downcast等操作！！！
+/// 否则会导致段错误！！！
 type AnRes = UnsafeCell<Option<Box<dyn Any>>>;
+
+type Droper = Option<Box<dyn FnOnce(&mut AnRes)>>;
 
 #[cfg(feature = "system")]
 use crate::system::System;
-
-type Droper = Option<Box<dyn FnOnce(&mut AnRes)>>;
 
 pub struct World {
     pub(crate) chunks: Vec<Chunk>,
     pub(crate) metas: HashMap<TypeId, BundleMeta>,
     #[cfg(feature = "system")]
-    pub(crate) startup_systems: Vec<Box<dyn System>>,
+    pub(crate) startup_systems: Vec<System>,
     #[cfg(feature = "system")]
-    pub(crate) systems: Vec<Box<dyn System>>,
+    pub(crate) systems: Vec<System>,
     pub(crate) resources: HashMap<TypeId, AnRes>,
     /// 因为运行时反射 资源在最后都以[Box<dyn Any>]的状态[Drop]
     /// 而不是调用自身的[Drop::drop]和方法
@@ -73,25 +77,25 @@ impl World {
 #[cfg(feature = "system")]
 impl World {
     #[allow(unused)]
-    pub(crate) fn exec<S: System>(&self, mut s: S) {
+    pub(crate) fn exec<M, S: InnerSystem<M>>(&self, mut s: S) {
         unsafe {
-            s.run_once(self);
+            s.run_once(s.build_args(self));
         }
     }
 
     /// 添加一个[System]
     ///
     /// 每次循环都会执行
-    pub fn add_system<S: System>(&mut self, system: S) -> &mut Self {
-        self.systems.push(Box::new(system));
+    pub fn add_system<M, S: InnerSystem<M>>(&mut self, system: S) -> &mut Self {
+        self.systems.push(System::new(system));
         self
     }
 
     /// 添加一个[System]
     ///
     /// 只会在刚开始循环时执行一次
-    pub fn add_startup_system<S: System>(&mut self, system: S) -> &mut Self {
-        self.startup_systems.push(Box::new(system));
+    pub fn add_startup_system<M, S: InnerSystem<M>>(&mut self, system: S) -> &mut Self {
+        self.startup_systems.push(System::new(system));
         self
     }
 
@@ -119,7 +123,7 @@ impl World {
 
     pub fn start_up(&mut self) -> &mut Self {
         while let Some(mut stsys) = self.startup_systems.pop() {
-            unsafe { stsys.run_once(self) };
+            stsys.run_once(self);
         }
         self
     }
@@ -134,7 +138,7 @@ impl World {
             &mut *(self as *const _ as *mut World)
         };
         for sys in &mut self.systems {
-            unsafe { sys.run_once(this) };
+            sys.run_once(this);
         }
     }
 }

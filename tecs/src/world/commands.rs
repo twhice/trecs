@@ -1,7 +1,7 @@
 use crate::{traits::command::Command, World};
 
 #[cfg(feature = "system")]
-use crate::system::fnsys::FnSystemParm;
+use crate::system::SystemParm;
 
 pub struct Commands<'a> {
     inner: &'a mut World,
@@ -33,14 +33,14 @@ impl Command for Commands<'_> {
 }
 
 #[cfg(feature = "system")]
-impl FnSystemParm for Commands<'_> {
+impl SystemParm for Commands<'_> {
     unsafe fn build(world: &World) -> Self {
         #[allow(mutable_transmutes)]
         let world: &mut World = std::mem::transmute(world);
         Commands { inner: world }
     }
 
-    unsafe fn init(_state: &mut crate::system::state::SystemState) {
-        // commands可以重复
+    fn init(_state: &mut crate::system::state::SystemState) {
+        // commands无约束
     }
 }

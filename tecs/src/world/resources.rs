@@ -5,7 +5,7 @@ use std::{
     marker::PhantomData,
 };
 
-use crate::traits::resources::ResManager;
+use crate::tools::ResManager;
 
 pub struct Res<'a, T: 'static> {
     handle: &'a mut Option<Box<dyn Any>>,

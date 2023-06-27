@@ -4,7 +4,7 @@ use std::marker::PhantomData;
 use crate::system::SystemParm;
 use crate::{
     iter::{EIter, Iter},
-    traits::{fetch::WorldFetch, filter::WorldFilter},
+    tools::{WorldFetch, WorldFilter},
     world::World,
 };
 
@@ -24,7 +24,7 @@ pub struct Query<'a, F: WorldFetch, Q: WorldFilter = ()> {
 }
 
 impl<'a, F: WorldFetch, Q: WorldFilter> Query<'a, F, Q> {
-    pub fn new(world: &'_ World) -> Query<'_, F, Q> {
+    pub fn new(world: &mut World) -> Query<'_, F, Q> {
         Query {
             world,
             _p: PhantomData,
@@ -55,7 +55,8 @@ impl<'a, F: WorldFetch + 'a, Q: WorldFilter> IntoIterator for Query<'a, F, Q> {
 #[cfg(feature = "system")]
 impl<F: WorldFetch, Q: WorldFilter> SystemParm for Query<'_, F, Q> {
     unsafe fn build(world: &World) -> Self {
-        let world: &'static World = std::mem::transmute(world);
+        #[allow(mutable_transmutes)]
+        let world: &mut World = std::mem::transmute(world);
         Query::<'_, F, Q>::new(world)
     }
 

@@ -1,6 +1,6 @@
 use std::time::{Duration, Instant};
 
-use tecs::traits::resources::ResManager;
+use tecs::tools::ResManager;
 use tecs::world::{Res, Resources};
 use tecs::World;
 

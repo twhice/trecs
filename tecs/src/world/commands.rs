@@ -1,4 +1,4 @@
-use crate::{traits::command::Command, World};
+use crate::{tools::Command, World};
 
 #[cfg(feature = "system")]
 use crate::system::SystemParm;

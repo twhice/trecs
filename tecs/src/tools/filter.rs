@@ -6,7 +6,7 @@ use std::{
 
 use crate::bundle::BundleMeta;
 #[allow(unused_imports)]
-use crate::{bundle::Bundle, traits::fetch::WorldFetch};
+use crate::{bundle::Bundle, tools::WorldFetch};
 /// 用来过滤[Bundle]
 ///
 /// 作为[WorldFetch]的附属使用
@@ -102,7 +102,7 @@ mod __impl {
         };
     }
 
-    proc::all_tuple!(impl_filter, 16);
+    tecs_proc::all_tuple!(impl_filter, 16);
 
     impl WorldFilter for () {
         fn filter(_: &'static [TypeId]) -> bool {

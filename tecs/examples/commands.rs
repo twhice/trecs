@@ -1,11 +1,11 @@
 use std::thread;
 use std::time::{Duration, Instant};
 
-use proc::Component;
+use tecs_proc::Component;
 
 use tecs::world::Query;
 use tecs::World;
-use tecs::{traits::command::Command, world::Commands};
+use tecs::{tools::Command, world::Commands};
 
 #[derive(Component)]
 pub struct Str {
@@ -15,7 +15,6 @@ pub struct Str {
 
 // unsafe会被忽视,最终的函数是safe的
 // 但是代码块仍然是unsafe上下文
-
 fn spawn_hello_world(mut commands: Commands) {
     static mut COUNTER: usize = 0;
 

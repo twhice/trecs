@@ -88,7 +88,7 @@ mod __impl {
         };
     }
 
-    proc::all_tuple!(impl_bundle, 16);
+    tecs_proc::all_tuple!(impl_bundle, 16);
 
     impl<C: Component> Bundle for C {
         fn destory(self) -> Components {

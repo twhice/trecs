@@ -2,13 +2,19 @@
 name = "tecs"
 version = "0.1.0"
 edition = "2021"
+license-file = "../LICENSE"
+description = "a tiny ecs library"
+repository = "https://github.com/twhice/tecs"
+keywords = ["gamedev", "ecs"]
+workspace = ".."
+readme = "../README.md"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 
 [dependencies]
-proc = { path = "../proc" }
+tecs_proc = { path = "../proc" }
 
 [features]
 default = ["system"]
-system = ["proc/system"]
+system = ["tecs_proc/system"]

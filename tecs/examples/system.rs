@@ -2,7 +2,7 @@ use std::time::{Duration, Instant};
 
 use tecs::bundle::{Bundle, Component};
 
-use tecs::traits::command::Command;
+use tecs::tools::Command;
 use tecs::world::Query;
 use tecs::World;
 

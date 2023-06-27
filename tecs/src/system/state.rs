@@ -3,7 +3,7 @@ use std::{
     collections::{HashMap, HashSet},
 };
 
-use crate::traits::fetch::WorldFetch;
+use crate::tools::WorldFetch;
 
 /// [System]的"状态"
 ///

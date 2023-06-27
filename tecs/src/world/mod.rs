@@ -18,7 +18,7 @@ use crate::{
     bundle::{Bundle, BundleMeta},
     storage::{Chunk, Entity, CHUNK_SIZE},
     system::InnerSystem,
-    traits::{command::Command, resources::ResManager},
+    tools::{Command, ResManager},
 };
 
 /// 这里的[Any]是没有虚表的！！！
@@ -112,16 +112,16 @@ impl World {
     where
         F: FnMut() -> bool,
     {
-        self.start_up();
         loop {
             if until() {
                 return;
             }
+            self.startup();
             self.run_once();
         }
     }
 
-    pub fn start_up(&mut self) -> &mut Self {
+    pub fn startup(&mut self) -> &mut Self {
         while let Some(mut stsys) = self.startup_systems.pop() {
             stsys.run_once(self);
         }

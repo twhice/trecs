@@ -2,7 +2,7 @@ use std::ops::{Deref, DerefMut};
 
 use crate::{
     storage::Entity,
-    traits::{fetch::WorldFetch, filter::WorldFilter},
+    tools::{WorldFetch, WorldFilter},
     world::World,
 };
 

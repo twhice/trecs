@@ -5,9 +5,9 @@ use std::marker::PhantomData;
 
 use crate::{
     storage::{Chunk, ChunkIter},
-    traits::{
-        fetch::{MappingTable, WorldFetch},
-        filter::WorldFilter,
+    tools::{
+        MappingTable, WorldFetch,
+        WorldFilter,
     },
     world::World,
 };

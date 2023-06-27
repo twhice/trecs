@@ -4,10 +4,7 @@ use std::{
     fmt::Debug,
 };
 
-use crate::traits::{
-    fetch::{MappingTable, WorldFetch},
-    filter::WorldFilter,
-};
+use crate::tools::{MappingTable, WorldFetch, WorldFilter};
 
 use super::{Bundle, Components};
 

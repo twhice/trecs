@@ -17,7 +17,7 @@ pub mod system;
 ///
 /// [Command]:crate
 /// [World]:crate
-pub mod traits;
+pub mod tools;
 pub mod world;
 /// 最终的容器
 pub use world::World;

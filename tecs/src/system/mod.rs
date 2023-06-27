@@ -14,7 +14,7 @@ pub trait InnerSystem<Marker> {
     fn run_once(&mut self, args: Box<()>);
 }
 
-/// 实现此特征 就可以作为[FnSystem]的参数
+/// 实现此特征 就可以作为[System]的参数
 pub(crate) trait SystemParm {
     /// 从[World]创建
     ///
@@ -54,7 +54,7 @@ mod __impl {
             }
         };
     }
-    proc::all_tuple!(impl_fnsystem, 16);
+    tecs_proc::all_tuple!(impl_fnsystem, 16);
 
     impl<F> InnerSystem<()> for F
     where

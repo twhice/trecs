@@ -54,7 +54,7 @@ mod __impl {
             }
         };
     }
-    tecs_proc::all_tuple!(impl_fnsystem, 16);
+    trecs_proc::all_tuple!(impl_fnsystem, 16);
 
     impl<F> InnerSystem<()> for F
     where

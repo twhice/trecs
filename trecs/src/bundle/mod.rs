@@ -4,7 +4,7 @@ use std::any::{Any, TypeId};
 
 pub use component::{Component, Components};
 pub(crate) use meta::BundleMeta;
-pub use tecs_proc::{Bundle, Component};
+pub use trecs_proc::{Bundle, Component};
 
 /// 一系列[Component]的组合
 ///

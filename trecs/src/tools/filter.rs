@@ -102,7 +102,7 @@ mod __impl {
         };
     }
 
-    tecs_proc::all_tuple!(impl_filter, 16);
+    trecs_proc::all_tuple!(impl_filter, 16);
 
     impl WorldFilter for () {
         fn filter(_: &'static [TypeId]) -> bool {

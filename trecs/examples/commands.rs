@@ -1,11 +1,11 @@
 use std::thread;
 use std::time::{Duration, Instant};
 
-use tecs_proc::Component;
+use trecs_proc::Component;
 
-use tecs::world::Query;
-use tecs::World;
-use tecs::{tools::Command, world::Commands};
+use trecs::world::Query;
+use trecs::World;
+use trecs::{tools::Command, world::Commands};
 
 #[derive(Component)]
 pub struct Str {

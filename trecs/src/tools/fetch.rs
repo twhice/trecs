@@ -187,5 +187,5 @@ mod __impl {
     }
     
     // 一次性从(T0)impl到(T0,T1,..,T15)
-    tecs_proc::all_tuple!(impl_fetch, 16);
+    trecs_proc::all_tuple!(impl_fetch, 16);
 }

@@ -48,7 +48,7 @@ pub fn bundle(input: TokenStream) -> TokenStream {
 
             let destory = quote! {
                 #[allow(non_snake_case)]
-                fn destory(self) -> ::tecs::bundle::Components{
+                fn destory(self) -> ::trecs::bundle::Components{
                     let #struct_name {#(#idents,)*} = self;
                     vec![#(Box::new(#idents2))*,]
                 }
@@ -58,7 +58,7 @@ pub fn bundle(input: TokenStream) -> TokenStream {
             let components_ids = struct_.fields.clone().into_iter().map(|field| {
                 let ty = field.ty;
                 quote! {
-                    <#ty as ::tecs::bundle::Component>::type_id_()
+                    <#ty as ::trecs::bundle::Component>::type_id_()
                 }
             });
             let components_ids = quote! {
@@ -94,7 +94,7 @@ pub fn bundle(input: TokenStream) -> TokenStream {
                 Some(format_ident!("T{}", state.to_string()))
             });
             let drop = quote! {
-                fn drop(cs : ::tecs::bundle::Components) {
+                fn drop(cs : ::trecs::bundle::Components) {
                     let mut iter = cs.into_iter().rev();
                     #(let #generator = iter.next().unwrap().downcast::<#tys>();)*
                 }
@@ -102,7 +102,7 @@ pub fn bundle(input: TokenStream) -> TokenStream {
 
             let result = quote! {
                 // #input
-                impl ::tecs::bundle::Bundle for #struct_name{
+                impl ::trecs::bundle::Bundle for #struct_name{
                     #destory
                     #components_ids
                     #drop
@@ -124,7 +124,7 @@ pub fn component(input: TokenStream) -> TokenStream {
 
     quote! {
         // #input
-        impl ::tecs::bundle::Component for #type_name{
+        impl ::trecs::bundle::Component for #type_name{
             fn type_id_() -> ::std::any::TypeId{
                 ::std::any::TypeId::of::<Self>()
             }

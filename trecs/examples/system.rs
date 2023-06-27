@@ -1,10 +1,10 @@
 use std::time::{Duration, Instant};
 
-use tecs::bundle::{Bundle, Component};
+use trecs::bundle::{Bundle, Component};
 
-use tecs::tools::Command;
-use tecs::world::Query;
-use tecs::World;
+use trecs::tools::Command;
+use trecs::world::Query;
+use trecs::World;
 
 #[derive(Bundle)]
 struct Str {

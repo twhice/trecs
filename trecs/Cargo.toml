@@ -1,9 +1,9 @@
 [package]
-name = "tecs"
+name = "trecs"
 version = "0.1.0"
 edition = "2021"
 license-file = "../LICENSE"
-description = "a tiny ecs library"
+description = "a tiny and easy to use ecs library"
 repository = "https://github.com/twhice/tecs"
 keywords = ["gamedev", "ecs"]
 workspace = ".."
@@ -13,8 +13,8 @@ readme = "../README.md"
 
 
 [dependencies]
-tecs_proc = { path = "../proc" }
+trecs_proc = { path = "../proc" }
 
 [features]
 default = ["system"]
-system = ["tecs_proc/system"]
+system = ["trecs_proc/system"]

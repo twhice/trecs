@@ -1,8 +1,8 @@
 use std::time::{Duration, Instant};
 
-use tecs::tools::ResManager;
-use tecs::world::{Res, Resources};
-use tecs::World;
+use trecs::tools::ResManager;
+use trecs::world::{Res, Resources};
+use trecs::World;
 
 /// 初始化资源String 为 "Hello world from Res"
 fn init_hello_world(mut res: Res<String>) {

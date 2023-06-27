@@ -1,5 +1,2 @@
 [workspace]
-members = [
-    "proc",
-    "tecs"
-]
+members = ["proc", "trecs"]

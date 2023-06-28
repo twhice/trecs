@@ -17,7 +17,6 @@ pub use self::{
 use crate::{
     bundle::{Bundle, BundleMeta},
     storage::{Chunk, Entity, CHUNK_SIZE},
-    system::InnerSystem,
     tools::{Command, ResManager},
 };
 
@@ -29,7 +28,7 @@ type AnRes = UnsafeCell<Option<Box<dyn Any>>>;
 type Droper = Option<Box<dyn FnOnce(&mut AnRes)>>;
 
 #[cfg(feature = "system")]
-use crate::system::System;
+use crate::system::{InnerSystem, System};
 
 pub struct World {
     pub(crate) chunks: Vec<Chunk>,
@@ -104,10 +103,16 @@ impl World {
     /// 在执行一次所有被添加进startup_systems的[System]后
     ///
     /// 会进入循环,每次循环执行systems里的所有[System]
+    #[cfg(not(feature = "async"))]
     pub fn run(&mut self) {
         self.run_until(|| false)
     }
+    #[cfg(feature = "async")]
+    pub async fn run(&mut self) {
+        self.run_until(|| false).await;
+    }
 
+    #[cfg(not(feature = "async"))]
     pub fn run_until<F>(&mut self, mut until: F)
     where
         F: FnMut() -> bool,
@@ -116,11 +121,28 @@ impl World {
             if until() {
                 return;
             }
+
             self.startup();
             self.run_once();
         }
     }
 
+    #[cfg(feature = "async")]
+    pub async fn run_until<F>(&mut self, mut until: F)
+    where
+        F: FnMut() -> bool,
+    {
+        loop {
+            if until() {
+                return;
+            }
+
+            self.startup().await;
+            self.run_once().await;
+        }
+    }
+
+    #[cfg(not(feature = "async"))]
     pub fn startup(&mut self) -> &mut Self {
         while let Some(mut stsys) = self.startup_systems.pop() {
             stsys.run_once(self);
@@ -128,7 +150,16 @@ impl World {
         self
     }
 
-    // 执行一次所有system
+    #[cfg(feature = "async")]
+    pub async fn startup(&mut self) -> &mut Self {
+        while let Some(mut stsys) = self.startup_systems.pop() {
+            stsys.run_once(self).await;
+        }
+        self
+    }
+
+    /// 执行一次所有system
+    #[cfg(not(feature = "async"))]
     pub fn run_once(&mut self) {
         let this = unsafe {
             // stable没下面的"cast_ref_to_mut" 所以需要下面的allow
@@ -139,6 +170,19 @@ impl World {
         };
         for sys in &mut self.systems {
             sys.run_once(this);
+        }
+    }
+    #[cfg(feature = "async")]
+    pub async fn run_once(&mut self) {
+        let this = unsafe {
+            // stable没下面的"cast_ref_to_mut" 所以需要下面的allow
+            #[allow(unknown_lints)]
+            // nightly版本会deny 所以这需要allow
+            #[allow(clippy::cast_ref_to_mut)]
+            &mut *(self as *const _ as *mut World)
+        };
+        for sys in &mut self.systems {
+            sys.run_once(this).await;
         }
     }
 }

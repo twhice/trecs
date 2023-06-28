@@ -1,6 +1,6 @@
 [package]
 name = "trecs"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 license-file = "../LICENSE"
 description = "a tiny and easy to use ecs library"
@@ -17,4 +17,5 @@ trecs_proc = "0.1.0"
 
 [features]
 default = ["system"]
-system = ["trecs_proc/system"]
+system = []
+async = []

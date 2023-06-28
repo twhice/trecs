@@ -40,7 +40,7 @@ world.spawn("abcde");
 ```
 you can derive `Bundle` and `Component` trait easily
 
-`Component` is just a tag, it could be implemented by any type
+`Component` is just a tag, it could be implemented for any type
 
 ``` rust
 use tecs::bundle::Component;
@@ -195,7 +195,13 @@ assert_eq!(*world.get_res<usize>().get().unwrap(),1);
 
 [with system](https://github.com/twhice/tecs/blob/main/tecs/examples/resources.rs)
 
-## System
+## features: System
+
+this feature is really useful
+
+this feature is enabled by default
+
+this feature allow you to run system in world to access resources and components
 
 only function-system supported in this version
 
@@ -228,3 +234,17 @@ to run systems in world,you can
 * use `.run()` method to run all systems many times, this method will not return.
 
 * use `.run_until(f)` method to run all systems many times, the loop will be break when `f` return `true`;
+
+## features: async
+
+this feature is disabled by default
+
+this feature allow you to run async function-system in world
+
+this feature make you can and only can add async function-system into world, reason:
+```
+note: upstream crates may add a new impl of trait `std::future::Future` for type `()` in future versions
+```
+
+the '.startup' '.run_once' '.run' '.run_until' methods become asynchronous functions
+

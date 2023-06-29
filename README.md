@@ -119,8 +119,8 @@ fn print_all_i23(mut query : Query<&i32>){
 
 
 
-world.add_startup_syste(do_spawn);
-world.add_startup_syste(print_all_i23);
+world.add_startup_system(do_spawn);
+world.add_startup_system(print_all_i23);
 world.run_until(||true);
 
 ```

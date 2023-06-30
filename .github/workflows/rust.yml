@@ -1,0 +1,22 @@
+name: 构建&测试
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: 构建
+      run: cargo build -p trecs --verbose
+    - name: 测试
+      run: cargo test -p trecs --verbose

@@ -1,10 +1,10 @@
 [package]
 name = "trecs"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 license-file = "../LICENSE"
 description = "a tiny and easy to use ecs library"
-repository = "https://github.com/twhice/tecs"
+repository = "https://github.com/twhice/trecs"
 keywords = ["gamedev", "ecs"]
 workspace = ".."
 readme = "../README.md"

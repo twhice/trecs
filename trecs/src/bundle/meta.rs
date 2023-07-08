@@ -53,10 +53,11 @@ impl BundleMeta {
 
     pub fn filter<F: WorldFilter>(&mut self) -> bool {
         let filter_id = TypeId::of::<F>();
-        if let std::collections::hash_map::Entry::Vacant(e) = self.filter_cache.entry(filter_id) {
-            e.insert(F::filter(self.components_ids));
-        }
-        self.filter_cache.get(&filter_id).copied().unwrap()
+
+        self.filter_cache
+            .entry(filter_id)
+            .or_insert_with(|| F::filter(self.components_ids))
+            .to_owned()
     }
 
     pub fn fetch<F: WorldFetch>(&mut self) -> Option<&MappingTable> {

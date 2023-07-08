@@ -25,4 +25,8 @@ impl Entity {
     pub(crate) fn index_in_chunk(&self) -> usize {
         self.index % CHUNK_SIZE
     }
+
+    pub(crate) fn chunk_index(&self) -> usize {
+        self.index / CHUNK_SIZE
+    }
 }

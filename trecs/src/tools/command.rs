@@ -5,6 +5,8 @@ use crate::{
     World,
 };
 
+use super::WorldFetch;
+
 pub trait Command {
     /// 注册一个[Bundle]
     ///
@@ -30,4 +32,6 @@ pub trait Command {
     ///
     /// 返回[Entity]代表的[Bundle]是否存在
     fn remove(&mut self, entity: Entity) -> bool;
+    /// 在[Entity]对应的[Bundle]上进行[WorldFetch]
+    fn fetch<F: WorldFetch>(&mut self, entity: Entity) -> Option<F::Item<'_>>;
 }

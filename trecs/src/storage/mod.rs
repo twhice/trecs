@@ -5,7 +5,7 @@ pub use entity::Entity;
 pub(crate) use iter::ChunkIter;
 
 use crate::bundle::{Bundle, Components};
-use std::fmt::Debug;
+use std::{any::TypeId, fmt::Debug};
 
 /// 一个[Chunk]的大小
 ///
@@ -36,7 +36,7 @@ pub(crate) struct Chunk {
     bundles: Vec<Components>,
     /// 储存对应下标下的[Entity]的信息
     ///
-    /// 第一位表示[Entitiy]是否"存活",
+    /// 第一位表示[Entity]是否"存活",
     /// 避免在available中进行查找
     ///
     /// 其余位表示这个位置的使用次数
@@ -51,15 +51,22 @@ pub(crate) struct Chunk {
     ///
     /// 以便直接生成[Entity]
     index: usize,
+    /// 内部存储的[Bundle]的[TypeId]
+    ///
+    /// 用于直接使用[WorldFetch]
+    ///
+    /// [WorldFetch]:crate
+    bundle_id: TypeId,
 }
 
 impl Chunk {
-    pub fn new(idx: usize) -> Self {
+    pub fn new<B: Bundle>(idx: usize) -> Self {
         Self {
             bundles: Vec::with_capacity(CHUNK_SIZE),
             alive: Vec::with_capacity(CHUNK_SIZE),
             removed: vec![],
             index: idx,
+            bundle_id: B::type_id_(),
         }
     }
 
@@ -145,6 +152,15 @@ impl Chunk {
                 clearer(target);
             });
     }
+
+    /// 直接获取[Entity]对应的[Components]
+    pub unsafe fn get(&self, index: usize) -> &Components {
+        &self.bundles[index]
+    }
+
+    pub fn bundle_id(&self) -> TypeId {
+        self.bundle_id
+    }
 }
 
 #[cfg(test)]
@@ -154,7 +170,8 @@ mod tests {
     #[test]
     fn insert_remove() {
         // hso
-        let mut chunk = Chunk::new(0);
+        // 这个（）是不是代表着什么呢？
+        let mut chunk = Chunk::new::<()>(0);
 
         // 先插进去两个
         assert_eq!(chunk.insert(123), Ok(Entity::new(ALIVE_TAG, 0)));

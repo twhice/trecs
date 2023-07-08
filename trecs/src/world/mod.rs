@@ -68,18 +68,21 @@ impl World {
             .unwrap()
             .chunks
             .push(self.chunks.len());
-        self.chunks.push(Chunk::new(self.chunks.len()));
+        self.chunks.push(Chunk::new::<B>(self.chunks.len()));
         self.chunks.last_mut().unwrap()
     }
 }
 
 #[cfg(feature = "system")]
 impl World {
-    #[allow(unused)]
-    pub(crate) fn exec<M, S: InnerSystem<M>>(&self, mut s: S) {
-        unsafe {
-            s.run_once(s.build_args(self));
-        }
+    #[cfg(not(feature = "async"))]
+    pub fn exec<M, S: InnerSystem<M>>(&self, mut s: S) {
+        s.run_once(s.build_args(self));
+    }
+
+    #[cfg(feature = "async")]
+    pub async fn exec<M, S: InnerSystem<M>>(&self, mut s: S) {
+        s.run_once(s.build_args(self)).await;
     }
 
     /// 添加一个[System]
@@ -236,42 +239,70 @@ impl Command for World {
     ) -> Vec<Entity> {
         // 注册&&准备meta
         self.register::<B>();
-        let meta = self.metas.get_mut(&B::type_id_()).unwrap();
+        // let meta = self.metas.get_mut(&B::type_id_()).unwrap();
 
         // 准备迭代器和返回
         let mut i = i.into_iter();
+        let mut chuns_iter = self
+            .metas
+            .get_mut(&B::type_id_())
+            .unwrap()
+            .chunks
+            .clone()
+            .into_iter();
+
         let mut entities = vec![];
 
-        let mut temp: Option<B> = None;
+        let mut temp_bundle: Option<B> = None;
 
-        meta.chunks
-            .iter()
-            .filter_map(|&cid| {
-                let chunk = self.chunks.get_mut(cid)?;
-                let entitiy_iter = (0..chunk.free()).filter_map(|_| {
-                    let item = temp.take().or_else(|| i.next())?;
-                    chunk.insert(item).map_err(|b| temp = Some(b)).ok()
-                });
-                entities.extend(entitiy_iter);
-                Some(())
-            })
-            .count();
-
-        let mut temp_chunk: Option<&mut Chunk> = None;
-        while let Some(b) = i.next().or_else(|| temp.take()) {
-            if temp_chunk.is_none() {
-                temp_chunk = self.new_chunk::<B>().into();
-            }
-            let chunk = temp_chunk.as_mut().unwrap();
-
-            match chunk.insert(b) {
-                Ok(entity) => entities.push(entity),
-                Err(b) => {
-                    temp_chunk = None;
-                    temp = b.into()
+        let temp_chunk = 'get_chunk: {
+            if let Some(cid) = chuns_iter.next() {
+                if let Some(chunk) = self.chunks.get_mut(cid) {
+                    break 'get_chunk chunk;
                 }
             }
-        }
+            self.new_chunk::<B>()
+        };
+
+        let mut eneity_iter = (0..temp_chunk.free()).filter_map(|_| {
+            let item = temp_bundle.take().or_else(|| i.next())?;
+            temp_chunk
+                .insert(item)
+                .map_err(|b| temp_bundle = b.into())
+                .ok()
+        });
+
+        let Some(entity) = eneity_iter.next() else {return entities;};
+        entities.extend(std::iter::once(entity).chain(eneity_iter));
+
+        // meta.chunks
+        //     .iter()
+        //     .filter_map(|&cid| {
+        //         let chunk = self.chunks.get_mut(cid)?;
+        //         let entitiy_iter = (0..chunk.free()).filter_map(|_| {
+        //             let item = temp_bundle.take().or_else(|| i.next())?;
+        //             chunk.insert(item).map_err(|b| temp_bundle = Some(b)).ok()
+        //         });
+        //         entities.extend(entitiy_iter);
+        //         Some(())
+        //     })
+        //     .count();
+
+        // let mut temp_chunk: Option<&mut Chunk> = None;
+        // while let Some(b) = i.next().or_else(|| temp_bundle.take()) {
+        //     if temp_chunk.is_none() {
+        //         temp_chunk = self.new_chunk::<B>().into();
+        //     }
+        //     let chunk = temp_chunk.as_mut().unwrap();
+
+        //     match chunk.insert(b) {
+        //         Ok(entity) => entities.push(entity),
+        //         Err(b) => {
+        //             temp_chunk = None;
+        //             temp_bundle = b.into()
+        //         }
+        //     }
+        // }
 
         entities
     }
@@ -285,6 +316,25 @@ impl Command for World {
             .get_mut(entity.index / CHUNK_SIZE)
             .map(|chunk| chunk.remove(entity))
             .unwrap_or(false)
+    }
+
+    fn fetch<F: crate::tools::WorldFetch>(&mut self, entity: Entity) -> Option<F::Item<'_>> {
+        // 还是不要滥用语法糖
+        // let true = self.alive(entity).unwrap_or(false) else{
+        //     return None;
+        // };
+
+        // 脱糖
+        if !self.alive(entity).unwrap_or(false) {
+            return None;
+        }
+        unsafe {
+            let chunk = self.chunks.get(entity.chunk_index())?;
+            let components = chunk.get(entity.index_in_chunk());
+            let mapping_table = self.metas.get_mut(&chunk.bundle_id())?.fetch::<F>()?;
+            let item = F::build(components, mapping_table);
+            Some(item)
+        }
     }
 }
 

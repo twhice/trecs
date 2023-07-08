@@ -30,6 +30,13 @@ impl Command for Commands<'_> {
     fn remove(&mut self, entity: crate::storage::Entity) -> bool {
         self.inner.remove(entity)
     }
+
+    fn fetch<F: crate::tools::WorldFetch>(
+        &mut self,
+        entity: crate::storage::Entity,
+    ) -> Option<F::Item<'_>> {
+        self.inner.fetch::<F>(entity)
+    }
 }
 
 #[cfg(feature = "system")]

@@ -255,25 +255,30 @@ impl Command for World {
 
         let mut temp_bundle: Option<B> = None;
 
-        let temp_chunk = 'get_chunk: {
-            if let Some(cid) = chuns_iter.next() {
-                if let Some(chunk) = self.chunks.get_mut(cid) {
-                    break 'get_chunk chunk;
+        loop {
+            // 判空
+            let Some(_temp_bundle) = temp_bundle.take().or_else(|| i.next()) else {return  entities;};
+            temp_bundle = Some(_temp_bundle);
+
+            let temp_chunk = 'get_chunk: {
+                if let Some(cid) = chuns_iter.next() {
+                    if let Some(chunk) = self.chunks.get_mut(cid) {
+                        break 'get_chunk chunk;
+                    }
                 }
-            }
-            self.new_chunk::<B>()
-        };
+                self.new_chunk::<B>()
+            };
 
-        let mut eneity_iter = (0..temp_chunk.free()).filter_map(|_| {
-            let item = temp_bundle.take().or_else(|| i.next())?;
-            temp_chunk
-                .insert(item)
-                .map_err(|b| temp_bundle = b.into())
-                .ok()
-        });
+            let eneity_iter = (0..temp_chunk.free()).filter_map(|_| {
+                let item = temp_bundle.take().or_else(|| i.next())?;
+                temp_chunk
+                    .insert(item)
+                    .map_err(|b| temp_bundle = b.into())
+                    .ok()
+            });
 
-        let Some(entity) = eneity_iter.next() else {return entities;};
-        entities.extend(std::iter::once(entity).chain(eneity_iter));
+            entities.extend(eneity_iter);
+        }
 
         // meta.chunks
         //     .iter()
@@ -303,8 +308,6 @@ impl Command for World {
         //         }
         //     }
         // }
-
-        entities
     }
 
     fn alive(&self, entity: crate::storage::Entity) -> Option<bool> {

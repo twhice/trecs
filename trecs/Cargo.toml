@@ -1,6 +1,6 @@
 [package]
 name = "trecs"
-version = "0.1.2"
+version = "0.1.3"
 edition = "2021"
 license-file = "../LICENSE"
 description = "a tiny and easy to use ecs library"
@@ -13,7 +13,7 @@ readme = "../README.md"
 
 
 [dependencies]
-trecs_proc = "0.1.0"
+trecs_proc = "0.1.2"
 
 [features]
 default = ["system"]

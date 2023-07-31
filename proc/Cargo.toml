@@ -1,6 +1,6 @@
 [package]
 name = "trecs_proc"
-version = "0.1.2"
+version = "0.1.3"
 edition = "2021"
 license-file = "../LICENSE"
 description = "proc_macros"
@@ -11,9 +11,5 @@ workspace = ".."
 proc-macro = true
 
 [dependencies.syn]
-version = "2.0.18"
+version = "2.0.20"
 features = ["full"]
-
-[features]
-default = []
-system = []

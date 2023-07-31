@@ -102,6 +102,7 @@ pub fn bundle(input: TokenStream) -> TokenStream {
 
             let result = quote! {
                 // #input
+                #[allow(non_snake_case)]
                 impl ::trecs::bundle::Bundle for #struct_name{
                     #destory
                     #components_ids

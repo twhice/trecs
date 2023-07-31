@@ -1,4 +1,4 @@
-use std::any::TypeId;
+use std::any::{Any, TypeId};
 
 #[allow(unused_imports)]
 use crate::bundle::{Bundle, Component, Components};
@@ -97,9 +97,10 @@ impl<T: Component> WorldFetch for &T {
         components: &'a Components,
         mapping_table: &MappingTable,
     ) -> Self::Item<'a> {
-        components[mapping_table.as_mapping().copied().unwrap()]
-            .downcast_ref()
-            .unwrap()
+        unsafe {
+            &*(&components[mapping_table.as_mapping().copied().unwrap()] as *const dyn Any
+                as *const T)
+        }
     }
 
     fn contain(components_ids: &mut Vec<TypeId>) -> Option<MappingTable> {
@@ -124,12 +125,11 @@ impl<T: Component> WorldFetch for &'_ mut T {
         components: &'a Components,
         mapping_table: &MappingTable,
     ) -> Self::Item<'a> {
-        let imref = components[mapping_table.as_mapping().copied().unwrap()]
-            .downcast_ref::<T>()
-            .unwrap();
-        // 编译器有很努力防止我破坏别名模型
-        #[allow(mutable_transmutes)]
-        std::mem::transmute(imref)
+        #[allow(clippy::cast_ref_to_mut)]
+        unsafe {
+            &mut *(&components[mapping_table.as_mapping().copied().unwrap()] as *const dyn Any
+                as *mut T)
+        }
     }
 
     fn contain(components_ids: &mut Vec<TypeId>) -> Option<MappingTable> {

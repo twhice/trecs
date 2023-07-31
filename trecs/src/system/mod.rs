@@ -1,10 +1,15 @@
 pub(crate) mod state;
-use std::{future::Future, pin::Pin};
 
 use crate::world::World;
 use state::SystemState;
 
-type AsyncUnit = Option<Pin<Box<dyn Future<Output = ()>>>>;
+#[cfg(not(feature = "async"))]
+type Unit = ();
+
+#[cfg(feature = "async")]
+use std::{future::Future, pin::Pin};
+#[cfg(feature = "async")]
+type Unit = Pin<Box<dyn Future<Output = ()>>>;
 
 /// 函数系统 : 由实现了[FnSystemParm]特征的类型作为参数,并且加上
 /// [proc::system]属性的的函数
@@ -15,7 +20,7 @@ pub trait InnerSystem<Marker> {
     /// 初始化
     fn init(&self);
 
-    fn run_once(&mut self, args: Box<()>) -> AsyncUnit;
+    fn run_once(&mut self, args: Box<()>) -> Unit;
 }
 
 /// 实现此特征 就可以作为[System]的参数
@@ -51,12 +56,11 @@ mod __impl {
                     $($t::init(&mut state);)*
                 }
 
-                fn run_once(&mut self, args: Box<()>) -> AsyncUnit{
+                fn run_once(&mut self, args: Box<()>) -> Unit{
                     let ($($t,)*) = unsafe{
                         *std::mem::transmute::<_,Box<($($t,)*)>>(args)
                     };
-                    (self)($($t,)*);
-                    None
+                    (self)($($t,)*)
                 }
             }
             };
@@ -72,9 +76,8 @@ mod __impl {
 
             fn init(&self) {}
 
-            fn run_once(&mut self, _args: Box<()>) -> AsyncUnit {
-                (self)();
-                None
+            fn run_once(&mut self, _args: Box<()>) -> Unit {
+                (self)()
             }
         }
     }
@@ -99,12 +102,11 @@ mod __impl {
                     $($t::init(&mut state);)*
                 }
 
-                fn run_once(&mut self, args: Box<()>) -> AsyncUnit{
+                fn run_once(&mut self, args: Box<()>) -> Unit{
                     let ($($t,)*) = unsafe{
                         *std::mem::transmute::<_,Box<($($t,)*)>>(args)
                     };
-                    (self)($($t,)*);
-                    None
+                    Box::pin((self)($($t,)*))
                 }
             }
             };
@@ -122,19 +124,16 @@ mod __impl {
 
             fn init(&self) {}
 
-            fn run_once(&mut self, _args: Box<()>) -> AsyncUnit {
-                Some(Box::pin((self)()))
+            fn run_once(&mut self, _args: Box<()>) -> Unit {
+                Box::pin((self)())
             }
         }
     }
 }
 
 #[non_exhaustive]
-pub enum System {
-    #[cfg(not(feature = "async"))]
-    Normal(Box<dyn InnerSystem<()>>),
-    #[cfg(feature = "async")]
-    Async(Box<dyn InnerSystem<()>>),
+pub struct System {
+    inner: Box<dyn InnerSystem<()>>,
 }
 
 impl System {
@@ -144,20 +143,15 @@ impl System {
 
         let inner: Box<dyn InnerSystem<()>> = unsafe { std::mem::transmute(fn_system) };
 
-        #[cfg(feature = "async")]
-        return Self::Async(inner);
-        #[cfg(not(feature = "async"))]
-        return Self::Normal(inner);
+        Self { inner }
     }
 
     #[cfg(not(feature = "async"))]
     pub(crate) fn run_once(&mut self, world: &World) {
-        let System::Normal(inner) = self;
-        inner.run_once(inner.build_args(world));
+        self.inner.run_once(self.inner.build_args(world));
     }
     #[cfg(feature = "async")]
     pub(crate) async fn run_once(&mut self, world: &World) {
-        let System::Async(inner) = self;
-        inner.run_once(inner.build_args(world)).unwrap().await;
+        self.inner.run_once(self.inner.build_args(world)).await;
     }
 }
